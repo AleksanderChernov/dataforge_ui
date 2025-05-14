@@ -1,5 +1,5 @@
+import { CryptoHistory } from "../CryptoHistoryInterface";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { WaitingList } from "../WaitingList";
 
 export default function Landing() {
@@ -46,40 +46,7 @@ export default function Landing() {
           ))}
         </div>
       </section>
-
-      <section className="py-20 px-6 max-w-6xl mx-auto fade-in-start animate-fade-in-delay-1">
-        <h2 className="text-3xl font-bold mb-6 text-center">
-          Интерфейс платформы
-        </h2>
-        <Tabs defaultValue="signals">
-          <TabsList className="justify-center bg-gray-800/40 backdrop-blur-md text-white">
-            <TabsTrigger value="signals">Сигналы</TabsTrigger>
-            <TabsTrigger value="portfolio">Портфель</TabsTrigger>
-            <TabsTrigger value="market">Рынок</TabsTrigger>
-          </TabsList>
-          <TabsContent value="signals">
-            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md text-white border border-white/10">
-              <CardContent className="p-6 text-gray-300">
-                [Пример сигналов]
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="portfolio">
-            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md text-white border border-white/10">
-              <CardContent className="p-6 text-gray-300">
-                [Пример портфеля]
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="market">
-            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md text-white border border-white/10">
-              <CardContent className="p-6 text-gray-300">
-                [Пример рыночных данных]
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </section>
+      <CryptoHistory />
     </div>
   );
 }
