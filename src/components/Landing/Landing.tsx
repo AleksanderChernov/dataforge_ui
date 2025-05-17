@@ -5,7 +5,7 @@ import { WaitingList } from "../WaitingList";
 export default function Landing() {
   return (
     <div className="text-white">
-      <section className="py-24 px-6 text-center max-w-5xl mx-auto bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md rounded-2xl shadow-lg border border-white/10 fade-in-start animate-fade-in-delay-0">
+      <section className="py-24 px-6 text-center max-w-5xl mx-auto bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md rounded-2xl shadow-lg border border-white/10 fade-in-start animate-fade-in-delay-1">
         <h1 className="text-5xl font-bold tracking-tight mb-4 fade-in-start animate-fade-in-delay-1">
           Преврати свою торговлю в стратегию с нами
         </h1>
@@ -35,7 +35,7 @@ export default function Landing() {
           ].map((f, i) => (
             <Card
               key={i}
-              className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md text-white border border-white/10 shadow-lg animate-fade-in"
+              className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md text-white border border-white/10 shadow-lg animate-fade-in-delay-2"
               style={{ animationDelay: `${i * 0.2}s` }}
             >
               <CardHeader>

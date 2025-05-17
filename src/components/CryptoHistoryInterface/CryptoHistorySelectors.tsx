@@ -1,151 +1,145 @@
 "use client";
 import ccxt from "ccxt";
-import { useEffect, useState } from "react";
+import { SetStateAction, useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { motion } from "framer-motion";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "../ui/select";
+import { fadeIn } from "@/lib/animations";
+import { disabledStyle } from "@/lib/styles";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Check, ChevronDown } from "lucide-react";
+import { Input } from "../ui/input";
+import { Badge } from "../ui/badge";
+import { cn } from "@/lib/utils";
 
 export default function CurrencyHistorySelectors() {
-  const [exchange, setExchange] = useState("binance");
-  const [currency, setCurrency] = useState("");
-  const [interval, setInterval] = useState("");
+  const exchange = "binance";
+  const [interval, setInterval] = useState<string>("");
   const [fromDate, setFromDate] = useState<Date | undefined>();
+  const [usdtSymbols, setUsdtSymbols] = useState<string[]>([]);
+  const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
+  const [search, setSearch] = useState<string>("");
   const [toDate, setToDate] = useState<Date | undefined>();
 
   const handleSubmit = () => {
-    console.log({ exchange, currency, interval, fromDate, toDate });
+    console.log({ selectedSymbols, interval, fromDate, toDate });
   };
 
-  const disabledStyle = "opacity-50 cursor-not-allowed";
-  const fadeIn = {
-    initial: { opacity: 0, y: 10 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.3 },
+  const filtered = useMemo(
+    () =>
+      usdtSymbols.filter((symbol) =>
+        symbol.toLowerCase().includes(search.toLowerCase())
+      ),
+    [search, usdtSymbols]
+  );
+
+  const checkForDoubleAndSave = (symbol: string) => {
+    if (selectedSymbols.includes(symbol)) {
+      setSelectedSymbols(selectedSymbols.filter((s) => s !== symbol));
+    } else if (selectedSymbols.length < 5) {
+      setSelectedSymbols([...selectedSymbols, symbol]);
+    }
   };
 
   useEffect(() => {
     (async () => {
       const exchange = new ccxt.binance({
         enableRateLimit: true,
-        options: { defaultType: "future" },
+        options: { defaultType: "perpetual" },
       });
       await exchange.loadMarkets();
       const usdtSymbols = Object.values(exchange.markets)
-        .filter((m) => m.swap && m.quote === "USDT" && m.active)
-        .map((m) => m.symbol);
-      const forbidden = new Set([
-        "TUSD/USDT",
-        "TFUEL/USDT",
-        "WIN/USDT",
-        "WAN/USDT",
-        "EUR/USDT",
-        "LTO/USDT",
-        "MBL/USDT",
-        "DATA/USDT",
-        "ARDR/USDT",
-        "DCR/USDT",
-        "KMD/USDT",
-        "LUNA/USDT",
-        "UTK/USDT",
-        "AUDIO/USDT",
-        "JUV/USDT",
-        "PSG/USDT",
-        "ATM/USDT",
-        "DODO/USDT",
-        "ACM/USDT",
-        "POND/USDT",
-        "TKO/USDT",
-        "BAR/USDT",
-        "SHIB/USDT",
-        "FARM/USDT",
-        "REQ/USDT",
-        "GNO/USDT",
-        "XEC/USDT",
-        "USDP/USDT",
-        "LAZIO/USDT",
-        "ADX/USDT",
-        "CITY/USDT",
-        "QI/USDT",
-        "PORTO/USDT",
-        "AMP/USDT",
-        "PYR/USDT",
-        "ALCX/USDT",
-        "BTTC/USDT",
-        "ACA/USDT",
-        "XNO/USDT",
-        "BIFI/USDT",
-        "NEXO/USDT",
-        "LUNC/USDT",
-        "OSMO/USDT",
-        "GNS/USDT",
-        "QKC/USDT",
-        "WBTC/USDT",
-        "PEPE/USDT",
-        "FLOKI/USDT",
-        "WBETH/USDT",
-        "FDUSD/USDT",
-        "IQ/USDT",
-        "PIVX/USDT",
-        "AEUR/USDT",
-        "BONK/USDT",
-        "EURI/USDT",
-        "SLF/USDT",
-        "BNSOL/USDT",
-        "XUSD/USDT",
-      ]);
-      console.log(usdtSymbols)
-      const tickers = await exchange.fetchTickers(usdtSymbols);
-      console.log(tickers);
+        .filter(
+          (symbol) =>
+            symbol.quote === "USDT" &&
+            symbol.active &&
+            symbol.swap &&
+            symbol.info.status === "TRADING"
+        )
+        .map(({ symbol }) => symbol);
+      console.log(usdtSymbols);
+      setUsdtSymbols(usdtSymbols);
     })();
-  });
+  }, []);
 
   return (
     <Card className="w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl">
       <CardContent className="space-y-4">
         <motion.div {...fadeIn}>
-          <Select onValueChange={setExchange} value={exchange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Выберите биржу" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="binance">Binance</SelectItem>
-            </SelectContent>
-          </Select>
-        </motion.div>
-
-        <motion.div {...fadeIn}>
           <div className={!exchange ? disabledStyle : ""}>
-            <Select
-              onValueChange={setCurrency}
-              value={currency}
-              disabled={!exchange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите валюту" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="BTC">BTC</SelectItem>
-                <SelectItem value="ETH">ETH</SelectItem>
-                <SelectItem value="USDT">USDT</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-4">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    Выберите до 5 символов
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-2">
+                  <Input
+                    placeholder="Search symbols..."
+                    value={search}
+                    onChange={(e: {
+                      target: { value: SetStateAction<string> };
+                    }) => setSearch(e.target.value)}
+                    className="mb-2"
+                  />
+                  <div className="flex flex-col align-items-center justify-center max-h-60 overflow-y-auto space-y-1">
+                    {filtered.slice(0, 50).map((symbol) => (
+                      <div
+                        key={symbol}
+                        className={cn(
+                          "cursor-pointer px-2 py-1 rounded-md flex justify-between",
+                          selectedSymbols.includes(symbol) &&
+                            "bg-primary text-white"
+                        )}
+                        onClick={() => checkForDoubleAndSave(symbol)}
+                      >
+                        <span>{symbol}</span>
+                        {selectedSymbols.includes(symbol) && (
+                          <Check className="h-4 w-4" />
+                        )}
+                      </div>
+                    ))}
+                    {filtered.length === 0 && (
+                      <div className="text-muted-foreground px-2">
+                        No results
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <div className="flex flex-wrap gap-2">
+                {selectedSymbols.map((symbol) => (
+                  <Badge
+                    key={symbol}
+                    onClick={() => checkForDoubleAndSave(symbol)}
+                    className="cursor-pointer"
+                    variant="secondary"
+                  >
+                    {symbol} ✕
+                  </Badge>
+                ))}
+              </div>
+            </div>
           </div>
         </motion.div>
 
         <motion.div {...fadeIn}>
-          <div className={!currency ? disabledStyle : ""}>
+          <div className={!selectedSymbols ? disabledStyle : ""}>
             <Select
               onValueChange={setInterval}
               value={interval}
-              disabled={!currency}
+              disabled={!selectedSymbols}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Выберите интервал" />
@@ -191,7 +185,7 @@ export default function CurrencyHistorySelectors() {
             className="w-full"
             onClick={handleSubmit}
             disabled={
-              !exchange || !currency || !interval || !fromDate || !toDate
+              !exchange || !selectedSymbols || !interval || !fromDate || !toDate
             }
           >
             Запросить данные
