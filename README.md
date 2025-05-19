@@ -20,3 +20,9 @@ A simple landing page with some selectors that let you choose params to get resu
 
 ## Why
 The main task was to get acquainted with cctx and trading in general, plus Backend-For-Frontend is a tool I wanted to learn better for a long time after working with Node/NestJs. 
+
+## TODO
+- Stricter typing
+- Fix TODO's that are still left in code
+- Better UI
+- Remember user's previous request params and ask if they want to get info for a previous week
