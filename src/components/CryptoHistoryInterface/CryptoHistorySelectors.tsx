@@ -23,16 +23,16 @@ import { cn } from "@/lib/utils";
 
 export default function CurrencyHistorySelectors() {
   const exchange = "binance";
-  const [interval, setInterval] = useState<string>("");
+  const [timeframe, setTimeframe] = useState<string>("");
   const [fromDate, setFromDate] = useState<Date | undefined>();
+  const [toDate, setToDate] = useState<Date | undefined>();
   const [usdtSymbols, setUsdtSymbols] = useState<string[]>([]);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
   const [search, setSearch] = useState<string>("");
-  const [toDate, setToDate] = useState<Date | undefined>();
   const [loading, setIsLoading] = useState<boolean>(false);
   const [error, setIsError] = useState<string>("");
 
-  const intervals: { value: string; alias: string }[] = [
+  const cctxTimeframes: { value: string; alias: string }[] = [
     { value: "1s", alias: "Секунда" },
     { value: "1m", alias: "Минута" },
     { value: "3m", alias: "3 Минуты" },
@@ -60,9 +60,9 @@ export default function CurrencyHistorySelectors() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           selectedSymbols,
-          timeframe: "1h",
-          from: "2024-01-01T00:00:00Z",
-          until: "2024-01-02T00:00:00Z",
+          timeframe,
+          from: fromDate,
+          until: toDate,
         }),
       });
       console.log(res);
@@ -133,7 +133,9 @@ export default function CurrencyHistorySelectors() {
   return (
     <Card className="w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl overflow:hidden">
       {loading ? (
-        <h1>Ждем информации с биржи</h1>
+        <div className="flex justify-center align-items-center text-center flex-col h-[500px]">
+          <h1>Ждем информации с биржи...</h1>
+        </div>
       ) : (
         <CardContent className="space-y-4">
           <motion.div {...fadeIn}>
@@ -203,15 +205,15 @@ export default function CurrencyHistorySelectors() {
           <motion.div {...fadeIn}>
             <div className={selectedSymbols.length === 0 ? disabledStyle : ""}>
               <Select
-                onValueChange={setInterval}
-                value={interval}
+                onValueChange={setTimeframe}
+                value={timeframe}
                 disabled={selectedSymbols.length === 0}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите интервал" />
                 </SelectTrigger>
                 <SelectContent>
-                  {intervals.map(({ value, alias }) => {
+                  {cctxTimeframes.map(({ value, alias }) => {
                     return (
                       <SelectItem key={value} value={value}>
                         {alias}
@@ -226,7 +228,7 @@ export default function CurrencyHistorySelectors() {
           <motion.div {...fadeIn}>
             <div
               className={`flex gap-4 ${
-                !interval ? disabledStyle + " pointer-events-none" : ""
+                !timeframe ? disabledStyle + " pointer-events-none" : ""
               }`}
             >
               <div className="flex flex-col">
@@ -236,7 +238,7 @@ export default function CurrencyHistorySelectors() {
                   locale={ru}
                   selected={fromDate}
                   onSelect={setFromDate}
-                  disabled={(day) => day > new Date() || !interval}
+                  disabled={(day) => day > new Date() || !timeframe}
                 />
               </div>
               <div className="flex flex-col">
@@ -246,7 +248,7 @@ export default function CurrencyHistorySelectors() {
                   locale={ru}
                   selected={toDate}
                   onSelect={setToDate}
-                  disabled={(day) => day > new Date() || !interval}
+                  disabled={(day) => day > new Date() || !timeframe}
                 />
               </div>
             </div>
@@ -259,7 +261,7 @@ export default function CurrencyHistorySelectors() {
               disabled={
                 !exchange ||
                 !selectedSymbols ||
-                !interval ||
+                !timeframe ||
                 !fromDate ||
                 !toDate
               }
@@ -269,7 +271,11 @@ export default function CurrencyHistorySelectors() {
           </motion.div>
         </CardContent>
       )}
-      {error ?? <h1>{error}</h1>}
+      {error ?? (
+        <div className="flex justify-center align-items-center text-center flex-col h-[500px]">
+          <h1>{error}</h1>
+        </div>
+      )}
     </Card>
   );
 }

@@ -33,23 +33,22 @@ export async function POST(req: {
     await exchange.loadMarkets();
 
     // Don't want to get banned by binance, so I throttle our requests. Since our max symbols is 5, then let's use 5 here too
-    const limitOfConcurrentRequests = pLimit(5);
+    const listOfConcurrentRequests = pLimit(5);
 
     const csvBuffers = await Promise.all(
       selectedSymbols.map((symbol) =>
-        limitOfConcurrentRequests(async () => {
+        listOfConcurrentRequests(async () => {
           try {
             const ohlcv = await exchange.fetchOHLCV(
               symbol,
               timeframe,
               fromMs,
-              untilMs,
-              { limit: 1000 }
+              untilMs
             );
-            const filtered = ohlcv.filter((row) => row[0]! <= untilMs);
+            //I took https://data.binance.vision/?prefix=data/futures/um/daily/klines/1000XUSDT/1d/ as an example
             const csv = [
               "timestamp,open,high,low,close,volume",
-              ...filtered.map((row) => row.join(",")),
+              ...ohlcv.map((row) => row.join(",")),
             ].join("\n");
             return {
               filename: symbol + ".csv",
