@@ -4,6 +4,7 @@ import { SetStateAction, useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ru } from "date-fns/locale";
+import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { motion } from "framer-motion";
 import {
@@ -16,7 +17,7 @@ import {
 import { fadeIn } from "@/lib/animations";
 import { disabledStyle } from "@/lib/styles";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Check, ChevronDown } from "lucide-react";
+import { CalendarIcon, Check, ChevronDown } from "lucide-react";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
 import { cn } from "@/lib/utils";
@@ -133,7 +134,7 @@ export default function CurrencyHistorySelectors() {
   return (
     <Card className="w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl overflow:hidden">
       {loading ? (
-        <div className="flex justify-center align-items-center text-center flex-col h-[500px]">
+        <div className="flex justify-center align-items-center text-center flex-col h-[300px]">
           <h1>Ждем информации с биржи...</h1>
         </div>
       ) : (
@@ -227,29 +228,70 @@ export default function CurrencyHistorySelectors() {
 
           <motion.div {...fadeIn}>
             <div
-              className={`flex gap-4 ${
-                !timeframe ? disabledStyle + " pointer-events-none" : ""
-              }`}
+              className={cn("flex flex-col gap-4", !timeframe && disabledStyle)}
             >
               <div className="flex flex-col">
-                <span className="text-sm mb-1">С даты:</span>
-                <Calendar
-                  mode="single"
-                  locale={ru}
-                  selected={fromDate}
-                  onSelect={setFromDate}
-                  disabled={(day) => day > new Date() || !timeframe}
-                />
+                <span className="text-sm mb-2">С даты:</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[280px] justify-start text-left font-normal",
+                        !fromDate && "text-muted-foreground"
+                      )}
+                      disabled={!timeframe}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {fromDate ? (
+                        format(fromDate, "PPP", { locale: ru })
+                      ) : (
+                        <span>Выберите дату</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={fromDate}
+                      onSelect={setFromDate}
+                      disabled={(day) => day > new Date() || !timeframe}
+                      locale={ru}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
+
               <div className="flex flex-col">
                 <span className="text-sm mb-1">По дату:</span>
-                <Calendar
-                  mode="single"
-                  locale={ru}
-                  selected={toDate}
-                  onSelect={setToDate}
-                  disabled={(day) => day > new Date() || !timeframe}
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[280px] justify-start text-left font-normal",
+                        !toDate && "text-muted-foreground"
+                      )}
+                      disabled={!timeframe}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {toDate ? (
+                        format(toDate, "PPP", { locale: ru })
+                      ) : (
+                        <span>Выберите дату</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={toDate}
+                      onSelect={setToDate}
+                      disabled={(day) => day > new Date() || !timeframe}
+                      locale={ru}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </motion.div>
@@ -273,7 +315,7 @@ export default function CurrencyHistorySelectors() {
       )}
       {error ?? (
         <div className="flex justify-center align-items-center text-center flex-col h-[500px]">
-          <h1>{error}</h1>
+          <h1 className="text-red">{error}</h1>
         </div>
       )}
     </Card>
