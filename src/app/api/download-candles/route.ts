@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
+import archiver from "archiver";
 import ccxt from "ccxt";
 import pLimit from "p-limit";
-import { Readable } from "node:stream";
-//TODO: fix "unknown" type
-function bufferToStream(buffer: unknown) {
-  const stream = new Readable();
-  stream.push(buffer);
-  stream.push(null);
-  return stream;
-}
-
 export async function POST(req: {
   json: () => PromiseLike<{
     selectedSymbols: string[];
@@ -33,14 +25,14 @@ export async function POST(req: {
     const fromMs = Date.parse(from);
     const untilMs = Date.parse(until);
 
-    //TODO: strange error, can`t pass exchange as a prop
+    //TODO: strange error, can`t pass exchange as a prop to API
     const exchange = new ccxt.binance({
       enableRateLimit: true,
       options: { defaultType: "perpetual" },
     });
     await exchange.loadMarkets();
 
-    // Don't want to get banned by binance, let's throttle our requests. Since our max symbols is 5, then let's use 5 here too
+    // Don't want to get banned by binance, so I throttle our requests. Since our max symbols is 5, then let's use 5 here too
     const limitOfConcurrentRequests = pLimit(5);
 
     const csvBuffers = await Promise.all(
@@ -65,31 +57,43 @@ export async function POST(req: {
             };
           } catch (err) {
             console.error(`Error with ${symbol}: ${err}`);
-            return null;
+            return;
           }
         })
       )
     );
 
+    //HAve to use archiver and write all of our results to an archive
     const archive = archiver("zip", { zlib: { level: 9 } });
-    const chunks = [];
+    const chunks: Buffer<ArrayBufferLike>[] = [];
 
+    console.log("Archiving starts");
+    archive.on("entry", (entry) => {
+      console.log(`Added to zip: ${entry.name}`);
+    });
     archive.on("data", (chunk) => chunks.push(chunk));
     archive.on("warning", (err) => console.warn("Something is wrong:", err));
     archive.on("error", (err) => {
       throw err;
     });
 
+    console.log("Start appending info to archives");
     for (const file of csvBuffers) {
       if (file) {
-        archive.append(bufferToStream(file.buffer), { name: file.filename });
+        archive.append(file.buffer, { name: file.filename });
       }
     }
 
-    await archive.finalize();
+    const archiveComplete = new Promise<void>((resolve, reject) => {
+      archive.on("end", resolve);
+      archive.on("error", reject);
+    });
 
-    // Wait until all chunks collected
-    await new Promise((resolve) => archive.on("end", resolve));
+    archive.finalize();
+
+    await archiveComplete;
+
+    console.log("Archive complete, creating buffer stream");
     const zipBuffer = Buffer.concat(chunks);
 
     return new NextResponse(zipBuffer, {

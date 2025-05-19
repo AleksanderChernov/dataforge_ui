@@ -29,6 +29,7 @@ export default function CurrencyHistorySelectors() {
   const [search, setSearch] = useState<string>("");
   const [toDate, setToDate] = useState<Date | undefined>();
   const [loading, setIsLoading] = useState<boolean>(false);
+  const [error, setIsError] = useState<string>("");
 
   const intervals: { value: string; alias: string }[] = [
     { value: "1s", alias: "Секунда" },
@@ -50,17 +51,35 @@ export default function CurrencyHistorySelectors() {
   ];
 
   const handleSubmit = async () => {
-    console.log("in client", { selectedSymbols, interval, fromDate, toDate });
-    await fetch("/api/download-candles", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        selectedSymbols,
-        timeframe: "1h",
-        from: "2024-01-01T00:00:00Z",
-        until: "2024-01-02T00:00:00Z",
-      }),
-    });
+    setIsError("");
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/download-candles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          selectedSymbols,
+          timeframe: "1h",
+          from: "2024-01-01T00:00:00Z",
+          until: "2024-01-02T00:00:00Z",
+        }),
+      });
+      console.log(res);
+      const historyBlob = await res.blob();
+      const url = URL.createObjectURL(historyBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ohlcv_data.zip";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.log(error);
+      setIsError(
+        "Ошибка при запросе истории по символам, попробуйте перезагрузить страницу"
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const filtered = useMemo(
@@ -81,6 +100,7 @@ export default function CurrencyHistorySelectors() {
 
   useEffect(() => {
     setIsLoading(true);
+    setIsError("");
     (async () => {
       try {
         const exchange = new ccxt.binance({
@@ -100,6 +120,9 @@ export default function CurrencyHistorySelectors() {
         setUsdtSymbols(usdtSymbols);
       } catch (err) {
         console.error(err);
+        setIsError(
+          "Ошибка при запросе информации бирж, попробуйте перезагрузить страницу"
+        );
       } finally {
         setIsLoading(false);
       }
@@ -211,7 +234,7 @@ export default function CurrencyHistorySelectors() {
                   mode="single"
                   selected={fromDate}
                   onSelect={setFromDate}
-                  disabled={!interval}
+                  disabled={(day) => day > new Date() || !interval}
                 />
               </div>
               <div className="flex flex-col">
@@ -220,7 +243,7 @@ export default function CurrencyHistorySelectors() {
                   mode="single"
                   selected={toDate}
                   onSelect={setToDate}
-                  disabled={!interval}
+                  disabled={(day) => day > new Date() || !interval}
                 />
               </div>
             </div>
@@ -243,6 +266,7 @@ export default function CurrencyHistorySelectors() {
           </motion.div>
         </CardContent>
       )}
+      {error ?? <h1>{error}</h1>}
     </Card>
   );
 }
