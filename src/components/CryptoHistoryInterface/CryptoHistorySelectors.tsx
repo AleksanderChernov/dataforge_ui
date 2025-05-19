@@ -3,6 +3,7 @@ import ccxt from "ccxt";
 import { SetStateAction, useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ru } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { motion } from "framer-motion";
 import {
@@ -67,10 +68,10 @@ export default function CurrencyHistorySelectors() {
       console.log(res);
       const historyBlob = await res.blob();
       const url = URL.createObjectURL(historyBlob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "ohlcv_data.zip";
-      a.click();
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `ohlcv_data:${selectedSymbols.join(".")}.zip`;
+      link.click();
       URL.revokeObjectURL(url);
     } catch (error) {
       console.log(error);
@@ -232,6 +233,7 @@ export default function CurrencyHistorySelectors() {
                 <span className="text-sm mb-1">С даты:</span>
                 <Calendar
                   mode="single"
+                  locale={ru}
                   selected={fromDate}
                   onSelect={setFromDate}
                   disabled={(day) => day > new Date() || !interval}
@@ -241,6 +243,7 @@ export default function CurrencyHistorySelectors() {
                 <span className="text-sm mb-1">По дату:</span>
                 <Calendar
                   mode="single"
+                  locale={ru}
                   selected={toDate}
                   onSelect={setToDate}
                   disabled={(day) => day > new Date() || !interval}

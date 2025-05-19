@@ -8,11 +8,11 @@ export default function WaitingList() {
         Начни торговать умнее уже сегодня
       </h2>
       <p className="text-gray-300 mb-6">
-         Присоединяйтесь к нам, протестируйте новый функционал когда он выйдет
+        Присоединяйтесь к нам, протестируйте новый функционал когда он выйдет
       </p>
       <div className="flex justify-center gap-4">
         <Input
-          placeholder="Введи email"
+          placeholder="Введите email"
           className="max-w-xs bg-gray-800 text-white placeholder-gray-400"
         />
         <Button>Я готов</Button>
