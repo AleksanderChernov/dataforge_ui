@@ -8,14 +8,14 @@ export default function WaitingList() {
         Начни торговать умнее уже сегодня
       </h2>
       <p className="text-gray-300 mb-6">
-        Подключи Telegram-бота или создай аккаунт
+        Присоединяйтесь к нам, протестируйте новый функционал когда он выйдет
       </p>
       <div className="flex justify-center gap-4">
         <Input
-          placeholder="Введи email"
+          placeholder="Введите email"
           className="max-w-xs bg-gray-800 text-white placeholder-gray-400"
         />
-        <Button>Начать</Button>
+        <Button>Я готов</Button>
       </div>
     </section>
   );

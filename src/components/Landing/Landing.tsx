@@ -1,11 +1,26 @@
+import { CryptoHistory } from "../CryptoHistoryInterface";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { WaitingList } from "../WaitingList";
 
 export default function Landing() {
+  const cards = [
+    {
+      title: "Быстрая аналитика",
+      desc: "Реакция на рынок от AI",
+    },
+    {
+      title: "AI-сигналы",
+      desc: "Умные прогнозы на основе машинного обучения",
+    },
+    {
+      title: "Безопасность",
+      desc: "Шифрование и защита",
+    },
+  ];
+
   return (
     <div className="text-white">
-      <section className="py-24 px-6 text-center max-w-5xl mx-auto bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md rounded-2xl shadow-lg border border-white/10 fade-in-start animate-fade-in-delay-0">
+      <section className="py-24 px-6 text-center max-w-5xl mx-auto bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md rounded-2xl shadow-lg border border-white/10 fade-in-start animate-fade-in-delay-1">
         <h1 className="text-5xl font-bold tracking-tight mb-4 fade-in-start animate-fade-in-delay-1">
           Преврати свою торговлю в стратегию с нами
         </h1>
@@ -19,67 +34,21 @@ export default function Landing() {
 
       <section className="py-20 px-6">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            {
-              title: "Быстрая аналитика",
-              desc: "Реакция на рынок от AI",
-            },
-            {
-              title: "AI-сигналы",
-              desc: "Умные прогнозы на основе машинного обучения",
-            },
-            {
-              title: "Безопасность",
-              desc: "Шифрование и защита",
-            },
-          ].map((f, i) => (
+          {cards.map((card, index) => (
             <Card
-              key={i}
-              className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md text-white border border-white/10 shadow-lg animate-fade-in"
-              style={{ animationDelay: `${i * 0.2}s` }}
+              key={index}
+              className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md text-white border border-white/10 shadow-lg animate-fade-in-delay-2"
+              style={{ animationDelay: `${index * 0.4}s` }}
             >
               <CardHeader>
-                <CardTitle>{f.title}</CardTitle>
+                <CardTitle>{card.title}</CardTitle>
               </CardHeader>
-              <CardContent className="text-gray-300">{f.desc}</CardContent>
+              <CardContent className="text-gray-300">{card.desc}</CardContent>
             </Card>
           ))}
         </div>
       </section>
-
-      <section className="py-20 px-6 max-w-6xl mx-auto fade-in-start animate-fade-in-delay-1">
-        <h2 className="text-3xl font-bold mb-6 text-center">
-          Интерфейс платформы
-        </h2>
-        <Tabs defaultValue="signals">
-          <TabsList className="justify-center bg-gray-800/40 backdrop-blur-md text-white">
-            <TabsTrigger value="signals">Сигналы</TabsTrigger>
-            <TabsTrigger value="portfolio">Портфель</TabsTrigger>
-            <TabsTrigger value="market">Рынок</TabsTrigger>
-          </TabsList>
-          <TabsContent value="signals">
-            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md text-white border border-white/10">
-              <CardContent className="p-6 text-gray-300">
-                [Пример сигналов]
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="portfolio">
-            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md text-white border border-white/10">
-              <CardContent className="p-6 text-gray-300">
-                [Пример портфеля]
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="market">
-            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md text-white border border-white/10">
-              <CardContent className="p-6 text-gray-300">
-                [Пример рыночных данных]
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </section>
+      <CryptoHistory />
     </div>
   );
 }
