@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import archiver from "archiver";
-import ccxt from "ccxt";
+import ccxt, { OHLCV } from "ccxt";
 import pLimit from "p-limit";
 export async function POST(req: {
   json: () => PromiseLike<{
@@ -13,8 +13,6 @@ export async function POST(req: {
   try {
     const { selectedSymbols, from, until, timeframe } = await req.json();
 
-    console.log(selectedSymbols, from, until, timeframe);
-
     if (selectedSymbols.length === 0 || !timeframe || !from || !until) {
       return NextResponse.json(
         { error: "Missing parameters" },
@@ -25,7 +23,7 @@ export async function POST(req: {
     const fromMs = Date.parse(from);
     const untilMs = Date.parse(until);
 
-    //TODO: strange error, can`t pass exchange as a prop to API
+    //TODO: strange error, can`t pass exchange as a prop to API, have to double it. Need more research.
     const exchange = new ccxt.binance({
       enableRateLimit: true,
       options: { defaultType: "perpetual" },
@@ -39,16 +37,48 @@ export async function POST(req: {
       selectedSymbols.map((symbol) =>
         listOfConcurrentRequests(async () => {
           try {
-            const ohlcv = await exchange.fetchOHLCV(
-              symbol,
-              timeframe,
-              fromMs,
-              untilMs
-            );
+            const allOHLCV: OHLCV[] = [];
+            let startSince = fromMs;
+            while (startSince < untilMs) {
+              const batch = await exchange.fetchOHLCV(
+                symbol,
+                timeframe,
+                startSince,
+                1000
+              );
+
+              //Something broke. Edgecase
+              if (!batch.length) {
+                break;
+              }
+
+              //Excluding everything from our upper timelimit. (AI proposed).
+              const filteredBatch = batch.filter(
+                (candle) => candle[0]! < untilMs
+              );
+              allOHLCV.push(...filteredBatch);
+
+              const lastTimestamp = batch[batch.length - 1][0];
+
+              //TODO: check again
+              if (!lastTimestamp || startSince >= lastTimestamp) {
+                console.log("Exchange candles changed, our info is now old");
+                break;
+              }
+              //basically no exchange has "until" param, so we have to calculate it ourselves. Candles timestamp is our only way to "advance" in time
+              startSince = lastTimestamp + 1;
+
+              console.log("candles", allOHLCV.length);
+              console.log({ startSince }, batch[batch.length - 1][0]);
+
+              //Just to be sure in cases of "1m" timeframe 1 week long
+              await exchange.sleep(exchange.rateLimit);
+            }
+            console.log(`We got ${allOHLCV.length} candles for ${symbol}`);
             //I took https://data.binance.vision/?prefix=data/futures/um/daily/klines/1000XUSDT/1d/ as an example
             const csv = [
               "timestamp,open,high,low,close,volume",
-              ...ohlcv.map((row) => row.join(",")),
+              ...allOHLCV.map((row) => row.join(",")),
             ].join("\n");
             return {
               filename: symbol + ".csv",
