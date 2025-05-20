@@ -21,6 +21,7 @@ import { CalendarIcon, Check, ChevronDown } from "lucide-react";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
 import { cn } from "@/lib/utils";
+import { Loading } from "../Loading";
 
 export default function CurrencyHistorySelectors() {
   const exchange = "binance";
@@ -132,11 +133,9 @@ export default function CurrencyHistorySelectors() {
   }, []);
 
   return (
-    <Card className="w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl overflow:hidden">
+    <Card className="flex flex-col align-items-center justify-center w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl min-h-[300px] overflow:hidden">
       {loading ? (
-        <div className="flex justify-center align-items-center text-center flex-col h-[300px]">
-          <h1>Ждем информации с биржи...</h1>
-        </div>
+        <Loading />
       ) : (
         <CardContent className="space-y-4">
           <motion.div {...fadeIn}>
