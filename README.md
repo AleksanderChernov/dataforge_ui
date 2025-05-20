@@ -6,10 +6,6 @@ Run the development server:
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
@@ -26,3 +22,4 @@ The main task was to get acquainted with cctx and trading in general, plus Backe
 - Fix TODO's that are still left in code
 - Better UI
 - Remember user's previous request params and ask if they want to get info for a previous week
+- Loading progress
