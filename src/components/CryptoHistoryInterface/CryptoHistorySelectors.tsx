@@ -135,7 +135,14 @@ export default function CurrencyHistorySelectors() {
   return (
     <Card className="flex flex-col align-items-center justify-center w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl min-h-[300px] overflow:hidden">
       {loading ? (
-        <Loading />
+        <Loading
+          message={
+            selectedSymbols.length >= 3 &&
+            (timeframe !== "1d" || "3d" || "1w" || "1M")
+              ? "Много выбранных символов и малые таймфреймы. Запрос может занять время."
+              : "Ждем информации с биржи..."
+          }
+        />
       ) : (
         <CardContent className="space-y-4">
           <motion.div {...fadeIn}>
@@ -299,7 +306,7 @@ export default function CurrencyHistorySelectors() {
 
           <motion.div {...fadeIn}>
             <Button
-              className="w-full"
+              className="w-full cursor-pointer"
               onClick={handleSubmit}
               disabled={
                 !exchange ||
