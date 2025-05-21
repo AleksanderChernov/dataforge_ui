@@ -271,7 +271,7 @@ export default function CurrencyHistorySelectors() {
                         "w-[280px] justify-start text-left font-normal",
                         !toDate && "text-muted-foreground"
                       )}
-                      disabled={!timeframe}
+                      disabled={!timeframe || !fromDate}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {toDate ? (
@@ -286,7 +286,9 @@ export default function CurrencyHistorySelectors() {
                       mode="single"
                       selected={toDate}
                       onSelect={setToDate}
-                      disabled={(day) => day > new Date() || !timeframe}
+                      disabled={(day) =>
+                        day > new Date() || day < fromDate! || !timeframe
+                      }
                       locale={ru}
                     />
                   </PopoverContent>
