@@ -1,6 +1,12 @@
 "use client";
-import ccxt from "ccxt";
-import { SetStateAction, useEffect, useMemo, useState } from "react";
+import ccxt, { OHLCV } from "ccxt";
+import {
+  SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ru } from "date-fns/locale";
@@ -22,13 +28,17 @@ import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
 import { cn } from "@/lib/utils";
 import { Loading } from "../Loading";
+import JSZip from "jszip";
+import pLimit from "p-limit";
+import { Checkbox } from "../ui/checkbox";
 
 export default function CurrencyHistorySelectors() {
-  const exchange = "binance";
+  const exchangeId = "binance";
   const [timeframe, setTimeframe] = useState<string>("");
   const [fromDate, setFromDate] = useState<Date | undefined>();
   const [toDate, setToDate] = useState<Date | undefined>();
-  const [usdtSymbols, setUsdtSymbols] = useState<string[]>([]);
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [allSymbols, setallSymbols] = useState<string[]>([]);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
   const [search, setSearch] = useState<string>("");
   const [loading, setIsLoading] = useState<boolean>(false);
@@ -53,44 +63,148 @@ export default function CurrencyHistorySelectors() {
     { value: "1M", alias: "1 Месяц" },
   ];
 
+  type Option = {
+    quote: string;
+    active: boolean;
+    swap: boolean;
+    future: boolean;
+    spot: boolean;
+    info: { status: string };
+    symbol: string;
+  };
+
+  type FilterConditions = {
+    label: string;
+    addedCheck: (symbol: Option) => string | boolean;
+  }[];
+
+  const filterConditions: FilterConditions = [
+    {
+      label: "USDT",
+      addedCheck: (symbol) => symbol.quote === "USDT",
+    },
+    {
+      label: "Active",
+      addedCheck: (symbol) => symbol.active,
+    },
+    {
+      label: "Swap",
+      addedCheck: (symbol) => symbol.swap,
+    },
+    {
+      label: "Future",
+      addedCheck: (symbol) => symbol.future,
+    },
+    {
+      label: "Spot",
+      addedCheck: (symbol) => symbol.spot,
+    },
+    {
+      label: "Traded",
+      addedCheck: (symbol) => symbol.info.status === "TRADING",
+    },
+  ];
+
   const handleSubmit = async () => {
     setIsError("");
     setIsLoading(true);
     try {
-      const res = await fetch("/api/download-candles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          selectedSymbols,
-          timeframe,
-          from: fromDate,
-          until: toDate,
-        }),
+      const exchange = new ccxt.binance({
+        enableRateLimit: true,
       });
-      console.log(res);
-      const historyBlob = await res.blob();
-      const url = URL.createObjectURL(historyBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `ohlcv_data:${selectedSymbols.join(".")}.zip`;
-      link.click();
-      URL.revokeObjectURL(url);
+      await exchange.loadMarkets();
+
+      const fromMs = Date.parse(fromDate!.toString());
+      const untilMs = Date.parse(toDate!.toString());
+      const listOfConcurrentRequests = pLimit(5);
+
+      const csvBuffers = await Promise.all(
+        selectedSymbols.map((symbol) =>
+          listOfConcurrentRequests(async () => {
+            try {
+              const allOHLCV: OHLCV[] = [];
+              let startSince = fromMs;
+              while (startSince < untilMs) {
+                const batch = await exchange.fetchOHLCV(
+                  symbol,
+                  timeframe,
+                  startSince,
+                  1000
+                );
+
+                if (!batch.length) {
+                  break;
+                }
+
+                // const filteredBatch = batch.filter(
+                //   (candle) => candle[0]! < untilMs
+                // );
+                allOHLCV.push(...batch);
+
+                const lastTimestamp = batch[batch.length - 1][0];
+
+                if (lastTimestamp && startSince >= lastTimestamp) {
+                  console.log("Exchange candles changed, our info is now old");
+                  break;
+                }
+
+                if (batch.length !== 1000) {
+                  break;
+                }
+
+                startSince = lastTimestamp! + 1;
+
+                await exchange.sleep(exchange.rateLimit);
+              }
+              console.log(`We got ${allOHLCV.length} candles for ${symbol}`);
+              const csv = [
+                "timestamp,open,high,low,close,volume",
+                ...allOHLCV.map((row) => row.join(",")),
+              ].join("\n");
+              return {
+                filename: symbol + ".csv",
+                content: csv,
+              };
+            } catch (error) {
+              setIsError(`Error with ${symbol}: ${error}`);
+              return;
+            }
+          })
+        )
+      );
+
+      const zip = new JSZip();
+
+      for (const file of csvBuffers) {
+        if (file) {
+          zip.file(file.filename, file.content);
+        }
+      }
+
+      zip.generateAsync({ type: "blob" }).then(function (content) {
+        const url = URL.createObjectURL(content);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `ohlcv_data:${selectedSymbols.join(".")}.zip`;
+        link.click();
+        URL.revokeObjectURL(url);
+      });
     } catch (error) {
       console.log(error);
       setIsError(
-        "Ошибка при запросе истории по символам, попробуйте перезагрузить страницу"
+        "Received an error while making a symbols history request. Try again."
       );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const filtered = useMemo(
+  const searchedSymbols = useMemo(
     () =>
-      usdtSymbols.filter((symbol) =>
+      allSymbols.filter((symbol) =>
         symbol.toLowerCase().includes(search.toLowerCase())
       ),
-    [search, usdtSymbols]
+    [search, allSymbols]
   );
 
   const checkForDoubleAndSave = (symbol: string) => {
@@ -101,35 +215,43 @@ export default function CurrencyHistorySelectors() {
     }
   };
 
-  useEffect(() => {
+  const loadSymbols = useCallback(async () => {
     setIsLoading(true);
     setIsError("");
-    (async () => {
-      try {
-        const exchange = new ccxt.binance({
-          enableRateLimit: true,
-          options: { defaultType: "perpetual" },
-        });
-        await exchange.loadMarkets();
-        const usdtSymbols = Object.values(exchange.markets)
-          .filter(
-            (symbol) =>
-              symbol.quote === "USDT" &&
-              symbol.active &&
-              symbol.swap &&
-              symbol.info.status === "TRADING"
-          )
-          .map(({ symbol }) => symbol);
-        setUsdtSymbols(usdtSymbols);
-      } catch (err) {
-        console.error(err);
-        setIsError(
-          "Ошибка при запросе информации бирж, попробуйте перезагрузить страницу"
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    })();
+    try {
+      const exchange = new ccxt.binance({
+        enableRateLimit: true,
+        options: { defaultType: "perpetual" },
+      });
+      await exchange.loadMarkets();
+      const filteredSymbols = Object.values(exchange.markets)
+        .filter((symbol) =>
+          filterConditions
+            .filter((filter) => activeFilters.includes(filter.label))
+            .every((filter) => filter.addedCheck(symbol))
+        )
+        .map(({ symbol }) => symbol);
+      console.log(Object.values(exchange.markets));
+      console.log(filteredSymbols);
+      setallSymbols(filteredSymbols);
+    } catch (err) {
+      console.error(err);
+      setIsError(
+        "Received an error while making a symbols list request. Try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeFilters]);
+
+  useEffect(() => {
+    loadSymbols();
+  }, [loadSymbols]);
+
+  const toggleFilter = useCallback((label: string) => {
+    setActiveFilters((prev) =>
+      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
+    );
   }, []);
 
   return (
@@ -139,36 +261,58 @@ export default function CurrencyHistorySelectors() {
           message={
             selectedSymbols.length >= 3 &&
             (timeframe !== "1d" || "3d" || "1w" || "1M")
-              ? "Много выбранных символов и малые таймфреймы. Запрос может занять время."
-              : "Ждем информации с биржи..."
+              ? "Small timeframe and many symbols, it might take a while."
+              : "Loading exchange info..."
           }
         />
       ) : (
         <CardContent className="space-y-4">
           <motion.div {...fadeIn}>
-            <div className={!exchange ? disabledStyle : ""}>
+            <div className={!exchangeId ? disabledStyle : ""}>
               <div className="space-y-4">
+                <motion.div {...fadeIn}>
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {filterConditions.map(({ label }) => (
+                      <div key={label} className="flex items-center space-x-2">
+                        <Checkbox
+                          className="cursor-pointer"
+                          checked={activeFilters.includes(label)}
+                          onCheckedChange={() => toggleFilter(label)}
+                        />
+                        <span>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+                <div className="p-4 text-center">
+                  {allSymbols.length} symbols found. Only 50 results will be
+                  shown, use the search to find those you seek.
+                </div>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       className="w-full justify-between"
                     >
-                      Выберите до 5 символов
+                      Choose up to 5 symbols.
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[300px] p-2">
                     <Input
-                      placeholder="Найти символы"
+                      placeholder="Search for symbols"
                       value={search}
                       onChange={(e: {
                         target: { value: SetStateAction<string> };
                       }) => setSearch(e.target.value)}
                       className="mb-2"
                     />
-                    <div className="flex flex-col align-items-center justify-center pt-12 max-h-60 overflow-y-auto space-y-1">
-                      {filtered.slice(0, 50).map((symbol) => (
+                    <div
+                      className={`flex flex-col align-items-center justify-center ${
+                        searchedSymbols.length > 5 ? "pt-12" : ""
+                      } max-h-60 overflow-y-auto space-y-1`}
+                    >
+                      {searchedSymbols.slice(0, 50).map((symbol) => (
                         <div
                           key={symbol}
                           className={cn(
@@ -184,9 +328,9 @@ export default function CurrencyHistorySelectors() {
                           )}
                         </div>
                       ))}
-                      {filtered.length === 0 && (
+                      {searchedSymbols.length === 0 && (
                         <div className="text-muted-foreground px-2">
-                          Не найдено
+                          Not found
                         </div>
                       )}
                     </div>
@@ -237,7 +381,7 @@ export default function CurrencyHistorySelectors() {
               className={cn("flex flex-col gap-4", !timeframe && disabledStyle)}
             >
               <div className="flex flex-col">
-                <span className="text-sm mb-2">С даты:</span>
+                <span className="text-sm mb-2">From:</span>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -252,7 +396,7 @@ export default function CurrencyHistorySelectors() {
                       {fromDate ? (
                         format(fromDate, "PPP", { locale: ru })
                       ) : (
-                        <span>Выберите дату</span>
+                        <span>Choose date</span>
                       )}
                     </Button>
                   </PopoverTrigger>
@@ -269,7 +413,7 @@ export default function CurrencyHistorySelectors() {
               </div>
 
               <div className="flex flex-col">
-                <span className="text-sm mb-1">По дату:</span>
+                <span className="text-sm mb-1">Until:</span>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -284,7 +428,7 @@ export default function CurrencyHistorySelectors() {
                       {toDate ? (
                         format(toDate, "PPP", { locale: ru })
                       ) : (
-                        <span>Выберите дату</span>
+                        <span>Choose date</span>
                       )}
                     </Button>
                   </PopoverTrigger>
@@ -309,14 +453,14 @@ export default function CurrencyHistorySelectors() {
               className="w-full cursor-pointer"
               onClick={handleSubmit}
               disabled={
-                !exchange ||
+                !exchangeId ||
                 !selectedSymbols ||
                 !timeframe ||
                 !fromDate ||
                 !toDate
               }
             >
-              Запросить данные
+              Make a request
             </Button>
           </motion.div>
         </CardContent>
