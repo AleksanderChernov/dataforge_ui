@@ -372,7 +372,7 @@ export default function CurrencyHistorySelectors() {
                 disabled={selectedSymbols.length === 0}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Выберите интервал" />
+                  <SelectValue placeholder="Choose timeframe" />
                 </SelectTrigger>
                 <SelectContent>
                   {cctxTimeframes.map(({ value, alias }) => {
