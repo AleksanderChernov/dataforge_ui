@@ -30,16 +30,17 @@ import { cn } from "@/lib/utils";
 import { Loading } from "../Loading";
 import JSZip from "jszip";
 import pLimit from "p-limit";
-import { Checkbox } from "../ui/checkbox";
+import FilterPanel from "./FilterPanel";
+import { FilterConditions } from "@/lib/types";
 
 export default function CurrencyHistorySelectors() {
   const exchangeId = "binance";
   const [timeframe, setTimeframe] = useState<string>("");
   const [fromDate, setFromDate] = useState<Date | undefined>();
   const [toDate, setToDate] = useState<Date | undefined>();
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [search, setSearch] = useState<string>("");
   const [loading, setIsLoading] = useState<boolean>(false);
   const [error, setIsError] = useState<string>("");
@@ -62,21 +63,6 @@ export default function CurrencyHistorySelectors() {
     { value: "1w", alias: "1 Week" },
     { value: "1M", alias: "1 Month" },
   ];
-
-  type Option = {
-    quote: string;
-    active: boolean;
-    swap: boolean;
-    future: boolean;
-    spot: boolean;
-    info: { status: string };
-    symbol: string;
-  };
-
-  type FilterConditions = {
-    label: string;
-    addedCheck: (symbol: Option) => string | boolean;
-  }[];
 
   const filterConditions: FilterConditions = [
     {
@@ -241,10 +227,6 @@ export default function CurrencyHistorySelectors() {
     }
   }, [activeFilters]);
 
-  useEffect(() => {
-    loadSymbols();
-  }, [loadSymbols]);
-
   const toggleFilter = useCallback((label: string) => {
     const exclusiveCheckboxes = ["Swap", "Spot", "Future"];
     setActiveFilters((prev) => {
@@ -265,6 +247,10 @@ export default function CurrencyHistorySelectors() {
     });
   }, []);
 
+  useEffect(() => {
+    loadSymbols();
+  }, [loadSymbols]);
+
   return (
     <Card className="flex flex-col align-items-center justify-center w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl min-h-[300px] overflow:hidden">
       {loading ? (
@@ -281,20 +267,11 @@ export default function CurrencyHistorySelectors() {
           <motion.div {...fadeIn}>
             <div className={!exchangeId ? disabledStyle : ""}>
               <div className="space-y-4">
-                <motion.div {...fadeIn}>
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    {filterConditions.map(({ label }) => (
-                      <div key={label} className="flex items-center space-x-2">
-                        <Checkbox
-                          className="cursor-pointer"
-                          checked={activeFilters.includes(label)}
-                          onCheckedChange={() => toggleFilter(label)}
-                        />
-                        <span>{label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
+                <FilterPanel
+                  filterConditions={filterConditions}
+                  activeFilters={activeFilters}
+                  toggleFilter={toggleFilter}
+                />
                 <div className="p-4 text-center">
                   {allSymbols.length} symbols loaded. Only 50 will be shown, use
                   the search to find those you seek.

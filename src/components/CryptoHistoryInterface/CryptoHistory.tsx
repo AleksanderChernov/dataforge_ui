@@ -1,4 +1,4 @@
-import CryptoHistorySelectors from "./CryptoHistorySelectors";
+import CryptoHistorySelectors from "@/components/CryptoHistoryInterface/CryptoHistorySelectors";
 
 export default function CryptoHistory() {
   return (
