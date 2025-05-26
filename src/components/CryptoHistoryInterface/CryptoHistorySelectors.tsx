@@ -38,29 +38,29 @@ export default function CurrencyHistorySelectors() {
   const [fromDate, setFromDate] = useState<Date | undefined>();
   const [toDate, setToDate] = useState<Date | undefined>();
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [allSymbols, setallSymbols] = useState<string[]>([]);
+  const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
   const [search, setSearch] = useState<string>("");
   const [loading, setIsLoading] = useState<boolean>(false);
   const [error, setIsError] = useState<string>("");
 
   const cctxTimeframes: { value: string; alias: string }[] = [
-    { value: "1s", alias: "Секунда" },
-    { value: "1m", alias: "Минута" },
-    { value: "3m", alias: "3 Минуты" },
-    { value: "5m", alias: "5 Минут" },
-    { value: "15m", alias: "15 Минут" },
-    { value: "30m", alias: "30 Минут" },
-    { value: "1h", alias: "1 Час" },
-    { value: "2h", alias: "2 Часа" },
-    { value: "4h", alias: "4 Часa" },
-    { value: "6h", alias: "6 Часов" },
-    { value: "8h", alias: "8 Часов" },
-    { value: "12h", alias: "12 Часов" },
-    { value: "1d", alias: "1 День" },
-    { value: "3d", alias: "3 Дня" },
-    { value: "1w", alias: "1 Неделя" },
-    { value: "1M", alias: "1 Месяц" },
+    { value: "1s", alias: "A Second" },
+    { value: "1m", alias: "1 Minute" },
+    { value: "3m", alias: "3 Minutes" },
+    { value: "5m", alias: "5 Minutes" },
+    { value: "15m", alias: "15 Minutes" },
+    { value: "30m", alias: "30 Minutes" },
+    { value: "1h", alias: "1 Hour" },
+    { value: "2h", alias: "2 Hours" },
+    { value: "4h", alias: "4 Hours" },
+    { value: "6h", alias: "6 Hours" },
+    { value: "8h", alias: "8 Hours" },
+    { value: "12h", alias: "12 Hours" },
+    { value: "1d", alias: "1 Day" },
+    { value: "3d", alias: "3 Days" },
+    { value: "1w", alias: "1 Week" },
+    { value: "1M", alias: "1 Month" },
   ];
 
   type Option = {
@@ -80,14 +80,6 @@ export default function CurrencyHistorySelectors() {
 
   const filterConditions: FilterConditions = [
     {
-      label: "USDT",
-      addedCheck: (symbol) => symbol.quote === "USDT",
-    },
-    {
-      label: "Active",
-      addedCheck: (symbol) => symbol.active,
-    },
-    {
       label: "Swap",
       addedCheck: (symbol) => symbol.swap,
     },
@@ -98,6 +90,14 @@ export default function CurrencyHistorySelectors() {
     {
       label: "Spot",
       addedCheck: (symbol) => symbol.spot,
+    },
+    {
+      label: "USDT",
+      addedCheck: (symbol) => symbol.quote === "USDT",
+    },
+    {
+      label: "Active",
+      addedCheck: (symbol) => symbol.active,
     },
     {
       label: "Traded",
@@ -136,9 +136,6 @@ export default function CurrencyHistorySelectors() {
                   break;
                 }
 
-                // const filteredBatch = batch.filter(
-                //   (candle) => candle[0]! < untilMs
-                // );
                 allOHLCV.push(...batch);
 
                 const lastTimestamp = batch[batch.length - 1][0];
@@ -233,7 +230,7 @@ export default function CurrencyHistorySelectors() {
         .map(({ symbol }) => symbol);
       console.log(Object.values(exchange.markets));
       console.log(filteredSymbols);
-      setallSymbols(filteredSymbols);
+      setAllSymbols(filteredSymbols);
     } catch (err) {
       console.error(err);
       setIsError(
@@ -249,9 +246,23 @@ export default function CurrencyHistorySelectors() {
   }, [loadSymbols]);
 
   const toggleFilter = useCallback((label: string) => {
-    setActiveFilters((prev) =>
-      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
-    );
+    const exclusiveCheckboxes = ["Swap", "Spot", "Future"];
+    setActiveFilters((prev) => {
+      const isExclusiveCheckbox = exclusiveCheckboxes.includes(label);
+      const isCheckboxActive = prev.includes(label);
+      if (isExclusiveCheckbox) {
+        return isCheckboxActive
+          ? prev.filter((filter) => filter !== label)
+          : [
+              ...prev.filter((filter) => !exclusiveCheckboxes.includes(filter)),
+              label,
+            ];
+      }
+
+      return isCheckboxActive
+        ? prev.filter((filter) => filter !== label)
+        : [...prev, label];
+    });
   }, []);
 
   return (
@@ -285,8 +296,8 @@ export default function CurrencyHistorySelectors() {
                   </div>
                 </motion.div>
                 <div className="p-4 text-center">
-                  {allSymbols.length} symbols found. Only 50 results will be
-                  shown, use the search to find those you seek.
+                  {allSymbols.length} symbols loaded. Only 50 will be shown, use
+                  the search to find those you seek.
                 </div>
                 <Popover>
                   <PopoverTrigger asChild>

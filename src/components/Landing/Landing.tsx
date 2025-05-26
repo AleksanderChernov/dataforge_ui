@@ -1,6 +1,6 @@
+import Link from "next/link";
 import { CryptoHistory } from "../CryptoHistoryInterface";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
-import { WaitingList } from "../WaitingList";
 
 export default function Landing() {
   const cards = [
@@ -24,8 +24,17 @@ export default function Landing() {
         <p className="text-xl text-gray-300 mb-6 fade-in-start animate-fade-in-delay-2">
           Trading tools built on data and speed
         </p>
-        <div className="flex justify-center gap-4 fade-in-start animate-fade-in-delay-3">
+        {/* Will be added, when DB is added */}
+        {/* <div className="flex justify-center gap-4 fade-in-start animate-fade-in-delay-3">
           <WaitingList />
+        </div> */}
+        <div className="flex justify-center gap-4 fade-in-start animate-fade-in-delay-3">
+          <h3 className="max-w-xl text-3xl p-12 tracking-tight mb-4 fade-in-start animate-fade-in-delay-1 text-center bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md rounded-2xl border border-white/10">
+            <Link href={"https://thevibe.trading/"}>
+              Come and check out our main product! An LLM trained on trading
+              data.
+            </Link>
+          </h3>
         </div>
       </section>
       <section className="py-20 px-6">
