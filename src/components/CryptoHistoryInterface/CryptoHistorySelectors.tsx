@@ -3,7 +3,6 @@ import ccxt, { OHLCV } from "ccxt";
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ru } from "date-fns/locale";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { motion } from "framer-motion";
@@ -339,7 +338,7 @@ export default function CurrencyHistorySelectors() {
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {fromDate ? (
-                        format(fromDate, "PPP", { locale: ru })
+                        format(fromDate, "PPP")
                       ) : (
                         <span>Choose date</span>
                       )}
@@ -351,7 +350,6 @@ export default function CurrencyHistorySelectors() {
                       selected={fromDate}
                       onSelect={setFromDate}
                       disabled={(day) => day > new Date() || !timeframe}
-                      locale={ru}
                     />
                   </PopoverContent>
                 </Popover>
@@ -371,7 +369,7 @@ export default function CurrencyHistorySelectors() {
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {toDate ? (
-                        format(toDate, "PPP", { locale: ru })
+                        format(toDate, "PPP")
                       ) : (
                         <span>Choose date</span>
                       )}
@@ -385,7 +383,6 @@ export default function CurrencyHistorySelectors() {
                       disabled={(day) =>
                         day > new Date() || day < fromDate! || !timeframe
                       }
-                      locale={ru}
                     />
                   </PopoverContent>
                 </Popover>
