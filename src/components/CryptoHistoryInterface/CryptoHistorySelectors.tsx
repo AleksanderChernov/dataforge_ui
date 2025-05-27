@@ -1,12 +1,6 @@
 "use client";
 import ccxt, { OHLCV } from "ccxt";
-import {
-  SetStateAction,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ru } from "date-fns/locale";
@@ -23,14 +17,15 @@ import {
 import { fadeIn } from "@/lib/animations";
 import { disabledStyle } from "@/lib/styles";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { CalendarIcon, Check, ChevronDown } from "lucide-react";
-import { Input } from "../ui/input";
+import { CalendarIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { cn } from "@/lib/utils";
 import { Loading } from "../Loading";
 import JSZip from "jszip";
 import pLimit from "p-limit";
 import FilterPanel from "./FilterPanel";
+import SymbolSelector from "./SymbolPanel";
+import { Progress } from "@/components/ui/progress";
 import { FilterConditions } from "@/lib/types";
 
 export default function CurrencyHistorySelectors() {
@@ -44,6 +39,7 @@ export default function CurrencyHistorySelectors() {
   const [search, setSearch] = useState<string>("");
   const [loading, setIsLoading] = useState<boolean>(false);
   const [error, setIsError] = useState<string>("");
+  const [progress, setProgress] = useState(0); // Progress state
 
   const cctxTimeframes: { value: string; alias: string }[] = [
     { value: "1s", alias: "A Second" },
@@ -94,6 +90,7 @@ export default function CurrencyHistorySelectors() {
   const handleSubmit = async () => {
     setIsError("");
     setIsLoading(true);
+    setProgress(0);
     try {
       const exchange = new ccxt.binance({
         enableRateLimit: true,
@@ -103,6 +100,8 @@ export default function CurrencyHistorySelectors() {
       const fromMs = Date.parse(fromDate!.toString());
       const untilMs = Date.parse(toDate!.toString());
       const listOfConcurrentRequests = pLimit(5);
+      const totalSymbols = selectedSymbols.length;
+      let completedSymbols = 0;
 
       const csvBuffers = await Promise.all(
         selectedSymbols.map((symbol) =>
@@ -144,6 +143,8 @@ export default function CurrencyHistorySelectors() {
                 "timestamp,open,high,low,close,volume",
                 ...allOHLCV.map((row) => row.join(",")),
               ].join("\n");
+              completedSymbols++;
+              setProgress((completedSymbols / totalSymbols) * 100);
               return {
                 filename: symbol + ".csv",
                 content: csv,
@@ -171,6 +172,7 @@ export default function CurrencyHistorySelectors() {
         link.download = `ohlcv_data:${selectedSymbols.join(".")}.zip`;
         link.click();
         URL.revokeObjectURL(url);
+        setProgress(0);
       });
     } catch (error) {
       console.log(error);
@@ -181,14 +183,6 @@ export default function CurrencyHistorySelectors() {
       setIsLoading(false);
     }
   };
-
-  const searchedSymbols = useMemo(
-    () =>
-      allSymbols.filter((symbol) =>
-        symbol.toLowerCase().includes(search.toLowerCase())
-      ),
-    [search, allSymbols]
-  );
 
   const checkForDoubleAndSave = (symbol: string) => {
     if (selectedSymbols.includes(symbol)) {
@@ -254,14 +248,19 @@ export default function CurrencyHistorySelectors() {
   return (
     <Card className="flex flex-col align-items-center justify-center w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl min-h-[300px] overflow:hidden">
       {loading ? (
-        <Loading
-          message={
-            selectedSymbols.length >= 3 &&
-            (timeframe !== "1d" || "3d" || "1w" || "1M")
-              ? "Small timeframe and many symbols, it might take a while."
-              : "Loading exchange info..."
-          }
-        />
+        <>
+          <Loading
+            message={
+              selectedSymbols.length >= 3 &&
+              (timeframe !== "1d" || "3d" || "1w" || "1M")
+                ? "Small timeframe and many symbols, it might take a while."
+                : "Loading exchange info..."
+            }
+          />
+          {progress > 0 ? (
+            <Progress value={progress} className="w-80%" />
+          ) : null}
+        </>
       ) : (
         <CardContent className="space-y-4">
           <motion.div {...fadeIn}>
@@ -276,55 +275,13 @@ export default function CurrencyHistorySelectors() {
                   {allSymbols.length} symbols loaded. Only 50 will be shown, use
                   the search to find those you seek.
                 </div>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between"
-                    >
-                      Choose up to 5 symbols.
-                      <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-2">
-                    <Input
-                      placeholder="Search for symbols"
-                      value={search}
-                      onChange={(e: {
-                        target: { value: SetStateAction<string> };
-                      }) => setSearch(e.target.value)}
-                      className="mb-2"
-                    />
-                    <div
-                      className={`flex flex-col align-items-center justify-center ${
-                        searchedSymbols.length > 5 ? "pt-12" : ""
-                      } max-h-60 overflow-y-auto space-y-1`}
-                    >
-                      {searchedSymbols.slice(0, 50).map((symbol) => (
-                        <div
-                          key={symbol}
-                          className={cn(
-                            "cursor-pointer px-2 py-1 rounded-md flex justify-between",
-                            selectedSymbols.includes(symbol) &&
-                              "bg-primary text-white"
-                          )}
-                          onClick={() => checkForDoubleAndSave(symbol)}
-                        >
-                          <span>{symbol}</span>
-                          {selectedSymbols.includes(symbol) && (
-                            <Check className="h-4 w-4" />
-                          )}
-                        </div>
-                      ))}
-                      {searchedSymbols.length === 0 && (
-                        <div className="text-muted-foreground px-2">
-                          Not found
-                        </div>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-
+                <SymbolSelector
+                  allSymbols={allSymbols}
+                  selectedSymbols={selectedSymbols}
+                  search={search}
+                  setSearch={setSearch}
+                  checkForDoubleAndSave={checkForDoubleAndSave}
+                />
                 <div className="flex flex-wrap gap-2">
                   {selectedSymbols.map((symbol) => (
                     <Badge
