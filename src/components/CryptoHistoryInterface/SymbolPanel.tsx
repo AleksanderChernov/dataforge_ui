@@ -57,7 +57,9 @@ export default function SymbolSelector(props: SymbolSelectorProps) {
     setVisibleSymbols(searchedSymbols.slice(0, 50));
   }, [search, searchedSymbols]);
 
-  useEffect(() => {
+  const setupObserver = (element: HTMLDivElement | null) => {
+    if (!element) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
@@ -67,14 +69,12 @@ export default function SymbolSelector(props: SymbolSelectorProps) {
       { threshold: 0.5 }
     );
 
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
+    observer.observe(element);
 
     return () => {
       observer.disconnect();
     };
-  }, [loadMoreRef, loadMoreSymbols]);
+  };
 
   return (
     <Popover>
@@ -93,7 +93,7 @@ export default function SymbolSelector(props: SymbolSelectorProps) {
           }
           className="mb-2"
         />
-        <div className={"h-100 overflow-y-auto space-y-1"}>
+        <div className="h-100 overflow-y-auto space-y-1">
           {visibleSymbols.length === 0 ? (
             <div className="text-muted-foreground px-2">Not found</div>
           ) : (
@@ -117,7 +117,15 @@ export default function SymbolSelector(props: SymbolSelectorProps) {
             <div className="text-muted-foreground px-2">Loading...</div>
           )}
           {visibleSymbols.length < searchedSymbols.length && (
-            <div ref={loadMoreRef} />
+            <div
+              className="h-1"
+              ref={(element) => {
+                loadMoreRef.current = element;
+                if (element) {
+                  setupObserver(element);
+                }
+              }}
+            />
           )}
         </div>
       </PopoverContent>
