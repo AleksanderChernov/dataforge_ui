@@ -18,7 +18,7 @@ import { disabledStyle } from "@/lib/styles";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, debounce } from "@/lib/utils";
 import { Loading } from "../Loading";
 import JSZip from "jszip";
 import pLimit from "p-limit";
@@ -38,7 +38,7 @@ export default function CurrencyHistorySelectors() {
   const [search, setSearch] = useState<string>("");
   const [loading, setIsLoading] = useState<boolean>(false);
   const [error, setIsError] = useState<string>("");
-  const [progress, setProgress] = useState(0); // Progress state
+  const [progress, setProgress] = useState(0);
 
   const cctxTimeframes: { value: string; alias: string }[] = [
     { value: "1s", alias: "A Second" },
@@ -207,8 +207,6 @@ export default function CurrencyHistorySelectors() {
             .every((filter) => filter.addedCheck(symbol))
         )
         .map(({ symbol }) => symbol);
-      console.log(Object.values(exchange.markets));
-      console.log(filteredSymbols);
       setAllSymbols(filteredSymbols);
     } catch (err) {
       console.error(err);
@@ -239,6 +237,10 @@ export default function CurrencyHistorySelectors() {
         : [...prev, label];
     });
   }, []);
+
+  const debouncedSetSearch = debounce((value: string) => {
+    setSearch(value);
+  }, 200);
 
   useEffect(() => {
     loadSymbols();
@@ -271,14 +273,14 @@ export default function CurrencyHistorySelectors() {
                   toggleFilter={toggleFilter}
                 />
                 <div className="p-4 text-center">
-                  {allSymbols.length} symbols loaded. Only 50 will be shown, use
-                  the search to find those you seek.
+                  {allSymbols.length} symbols loaded. Use the search to find
+                  those you seek.
                 </div>
                 <SymbolSelector
                   allSymbols={allSymbols}
                   selectedSymbols={selectedSymbols}
                   search={search}
-                  setSearch={setSearch}
+                  setSearch={debouncedSetSearch}
                   checkForDoubleAndSave={checkForDoubleAndSave}
                 />
                 <div className="flex flex-wrap gap-2">

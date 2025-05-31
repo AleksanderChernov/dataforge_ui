@@ -1,8 +1,10 @@
-import { SetStateAction } from "react";
+"use client";
+
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Check } from "lucide-react";
@@ -13,7 +15,7 @@ type SymbolSelectorProps = {
   allSymbols: string[];
   selectedSymbols: string[];
   search: string;
-  setSearch: (value: SetStateAction<string>) => void;
+  setSearch: (value: string) => void;
   checkForDoubleAndSave: (symbol: string) => void;
 };
 
@@ -25,9 +27,54 @@ export default function SymbolSelector(props: SymbolSelectorProps) {
     setSearch,
     checkForDoubleAndSave,
   } = props;
-  const searchedSymbols = allSymbols.filter((symbol) =>
-    symbol.toLowerCase().includes(search.toLowerCase())
-  );
+  const [visibleSymbols, setVisibleSymbols] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  const searchedSymbols = useMemo(() => {
+    return allSymbols.filter((symbol) =>
+      symbol.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [allSymbols, search]);
+
+  const loadMoreSymbols = useCallback(() => {
+    if (isLoading) return;
+    setIsLoading(true);
+    setVisibleSymbols((prevVisibleSymbols) => {
+      const startIndex = prevVisibleSymbols.length;
+      const endIndex = Math.min(startIndex + 50, searchedSymbols.length);
+      if (startIndex >= searchedSymbols.length) {
+        setIsLoading(false);
+        return prevVisibleSymbols;
+      }
+      const nextSymbols = searchedSymbols.slice(startIndex, endIndex);
+      setIsLoading(false);
+      return [...prevVisibleSymbols, ...nextSymbols];
+    });
+  }, [isLoading, searchedSymbols]);
+
+  useEffect(() => {
+    setVisibleSymbols(searchedSymbols.slice(0, 50));
+  }, [search, searchedSymbols]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMoreSymbols();
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [loadMoreRef, loadMoreSymbols]);
 
   return (
     <Popover>
@@ -41,33 +88,36 @@ export default function SymbolSelector(props: SymbolSelectorProps) {
         <Input
           placeholder="Search for symbols"
           value={search}
-          onChange={(e: { target: { value: SetStateAction<string> } }) =>
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             setSearch(e.target.value)
           }
           className="mb-2"
         />
-        <div
-          className={`flex flex-col align-items-center justify-center ${
-            searchedSymbols.length > 5 ? "pt-12" : ""
-          } max-h-60 overflow-y-auto space-y-1`}
-        >
-          {searchedSymbols.slice(0, 50).map((symbol) => (
-            <div
-              key={symbol}
-              className={cn(
-                "cursor-pointer px-2 py-1 rounded-md flex justify-between",
-                selectedSymbols.includes(symbol) && "bg-primary text-white"
-              )}
-              onClick={() => checkForDoubleAndSave(symbol)}
-            >
-              <span>{symbol}</span>
-              {selectedSymbols.includes(symbol) && (
-                <Check className="h-4 w-4" />
-              )}
-            </div>
-          ))}
-          {searchedSymbols.length === 0 && (
+        <div className={"h-100 overflow-y-auto space-y-1"}>
+          {visibleSymbols.length === 0 ? (
             <div className="text-muted-foreground px-2">Not found</div>
+          ) : (
+            visibleSymbols.map((symbol, index) => (
+              <div
+                key={index}
+                className={cn(
+                  "cursor-pointer px-2 py-1 rounded-md flex justify-between",
+                  selectedSymbols.includes(symbol) && "bg-primary text-white"
+                )}
+                onClick={() => checkForDoubleAndSave(symbol)}
+              >
+                <span>{symbol}</span>
+                {selectedSymbols.includes(symbol) && (
+                  <Check className="h-4 w-4" />
+                )}
+              </div>
+            ))
+          )}
+          {isLoading && (
+            <div className="text-muted-foreground px-2">Loading...</div>
+          )}
+          {visibleSymbols.length < searchedSymbols.length && (
+            <div ref={loadMoreRef} />
           )}
         </div>
       </PopoverContent>
