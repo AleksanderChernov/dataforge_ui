@@ -152,7 +152,7 @@ export default function CurrencyHistorySelectors() {
                 filename: `${escapeFilename(symbol)}_${format(
                   fromDate!,
                   "ddMMyyyy"
-                )}_to_${format(toDate!, "ddMMyyyy")}.csv`,
+                )}_${format(toDate!, "ddMMyyyy")}.csv`,
                 content: csv,
               };
             } catch (error) {
