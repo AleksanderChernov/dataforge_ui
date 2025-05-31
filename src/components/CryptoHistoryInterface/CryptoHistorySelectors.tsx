@@ -26,6 +26,7 @@ import FilterPanel from "./FilterPanel";
 import SymbolSelector from "./SymbolPanel";
 import { Progress } from "@/components/ui/progress";
 import { FilterConditions } from "@/lib/types";
+import SymbolInfo from "./SymbolInfo";
 
 export default function CurrencyHistorySelectors() {
   const exchangeId = "binance";
@@ -283,6 +284,7 @@ export default function CurrencyHistorySelectors() {
                   setSearch={debouncedSetSearch}
                   checkForDoubleAndSave={checkForDoubleAndSave}
                 />
+                <SymbolInfo />
                 <div className="flex flex-wrap gap-2">
                   {selectedSymbols.map((symbol) => (
                     <Badge
