@@ -18,7 +18,7 @@ import { disabledStyle } from "@/lib/styles";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
-import { cn, debounce } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Loading } from "../Loading";
 import JSZip from "jszip";
 import pLimit from "p-limit";
@@ -35,8 +35,11 @@ export default function CurrencyHistorySelectors() {
   const [toDate, setToDate] = useState<Date | undefined>();
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [search, setSearch] = useState<string>("");
+  const [activeFilters, setActiveFilters] = useState<string[]>([
+    "Active",
+    "Traded",
+    "USDT",
+  ]);
   const [loading, setIsLoading] = useState<boolean>(false);
   const [error, setIsError] = useState<string>("");
   const [progress, setProgress] = useState(0);
@@ -151,8 +154,8 @@ export default function CurrencyHistorySelectors() {
               return {
                 filename: `${escapeFilename(symbol)}_${format(
                   fromDate!,
-                  "ddMMyyyy"
-                )}_${format(toDate!, "ddMMyyyy")}.csv`,
+                  "yyyy_MM-dd"
+                )}_${format(toDate!, "yyyy_MM-dd")}.csv`,
                 content: csv,
               };
             } catch (error) {
@@ -247,10 +250,6 @@ export default function CurrencyHistorySelectors() {
     });
   }, []);
 
-  const debouncedSetSearch = debounce((value: string) => {
-    setSearch(value);
-  }, 200);
-
   useEffect(() => {
     loadSymbols();
   }, [loadSymbols]);
@@ -288,11 +287,8 @@ export default function CurrencyHistorySelectors() {
                 <SymbolSelector
                   allSymbols={allSymbols}
                   selectedSymbols={selectedSymbols}
-                  search={search}
-                  setSearch={debouncedSetSearch}
                   checkForDoubleAndSave={checkForDoubleAndSave}
                 />
-                <SymbolInfo />
                 <div className="flex flex-wrap gap-2">
                   {selectedSymbols.map((symbol) => (
                     <Badge
@@ -305,6 +301,7 @@ export default function CurrencyHistorySelectors() {
                     </Badge>
                   ))}
                 </div>
+                <SymbolInfo />
               </div>
             </div>
           </motion.div>

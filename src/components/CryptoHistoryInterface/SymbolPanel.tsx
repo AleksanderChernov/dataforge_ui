@@ -10,32 +10,27 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useDebounce } from "use-debounce";
 
-type SymbolSelectorProps = {
+type SymbolPanelProps = {
   allSymbols: string[];
   selectedSymbols: string[];
-  search: string;
-  setSearch: (value: string) => void;
   checkForDoubleAndSave: (symbol: string) => void;
 };
 
-export default function SymbolSelector(props: SymbolSelectorProps) {
-  const {
-    allSymbols,
-    selectedSymbols,
-    search,
-    setSearch,
-    checkForDoubleAndSave,
-  } = props;
+export default function SymbolPanel(props: SymbolPanelProps) {
+  const { allSymbols, selectedSymbols, checkForDoubleAndSave } = props;
   const [visibleSymbols, setVisibleSymbols] = useState<string[]>([]);
+  const [search, setSearch] = useState<string>("");
+  const [debouncedSearch] = useDebounce(search, 500);
   const [isLoading, setIsLoading] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const searchedSymbols = useMemo(() => {
     return allSymbols.filter((symbol) =>
-      symbol.toLowerCase().includes(search.toLowerCase())
+      symbol.toLowerCase().includes(debouncedSearch.toLowerCase())
     );
-  }, [allSymbols, search]);
+  }, [allSymbols, debouncedSearch]);
 
   const loadMoreSymbols = useCallback(() => {
     if (isLoading) return;
@@ -55,7 +50,7 @@ export default function SymbolSelector(props: SymbolSelectorProps) {
 
   useEffect(() => {
     setVisibleSymbols(searchedSymbols.slice(0, 50));
-  }, [search, searchedSymbols]);
+  }, [debouncedSearch, searchedSymbols]);
 
   const setupObserver = (element: HTMLDivElement | null) => {
     if (!element) return;
@@ -89,7 +84,7 @@ export default function SymbolSelector(props: SymbolSelectorProps) {
           placeholder="Search for symbols"
           value={search}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setSearch(e.target.value)
+            setSearch(e.target.value as string)
           }
           className="mb-2"
         />
