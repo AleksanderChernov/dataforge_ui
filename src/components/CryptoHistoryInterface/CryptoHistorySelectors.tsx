@@ -41,6 +41,9 @@ export default function CurrencyHistorySelectors() {
   const [error, setIsError] = useState<string>("");
   const [progress, setProgress] = useState(0);
 
+  const escapeFilename = (filename: string) =>
+    filename.replace(/[/\\?%*:|"<>]/g, "-");
+
   const cctxTimeframes: { value: string; alias: string }[] = [
     { value: "1s", alias: "A Second" },
     { value: "1m", alias: "1 Minute" },
@@ -146,7 +149,10 @@ export default function CurrencyHistorySelectors() {
               completedSymbols++;
               setProgress((completedSymbols / totalSymbols) * 100);
               return {
-                filename: symbol + ".csv",
+                filename: `${escapeFilename(symbol)}_${format(
+                  fromDate!,
+                  "ddMMyyyy"
+                )}_to_${format(toDate!, "ddMMyyyy")}.csv`,
                 content: csv,
               };
             } catch (error) {
@@ -169,7 +175,9 @@ export default function CurrencyHistorySelectors() {
         const url = URL.createObjectURL(content);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `ohlcv_data:${selectedSymbols.join(".")}.zip`;
+        link.download = `ohlcv_data:${escapeFilename(
+          selectedSymbols.join(".")
+        )}.zip`;
         link.click();
         URL.revokeObjectURL(url);
         setProgress(0);
