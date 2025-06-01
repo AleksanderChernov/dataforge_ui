@@ -96,8 +96,9 @@ export default function SymbolPanel(props: SymbolPanelProps) {
               <div
                 key={index}
                 className={cn(
-                  "cursor-pointer px-2 py-1 rounded-md flex justify-between",
-                  selectedSymbols.includes(symbol) && "bg-primary text-white"
+                  "cursor-pointer items-center px-2 py-1 rounded-md flex justify-between",
+                  selectedSymbols.includes(symbol) &&
+                    "bg-primary text-white dark:bg-primary dark:text-black"
                 )}
                 onClick={() => checkForDoubleAndSave(symbol)}
               >

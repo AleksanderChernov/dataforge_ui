@@ -118,7 +118,7 @@ export default function CurrencyHistorySelectors() {
 
       const toDateFixed = new Date(toDate!);
       toDateFixed.setUTCHours(0, 0, 0, 0);
-      toDateFixed.setUTCDate(toDateFixed.getDate() + 1); // grab the end of the next day, not the start
+      toDateFixed.setUTCDate(toDateFixed.getDate() + 1); // grab the end of the next day, not stop at the start
 
       const fromMs = fromDateFixed.getTime();
       const untilMs = toDateFixed.getTime();
@@ -143,7 +143,7 @@ export default function CurrencyHistorySelectors() {
           case "M":
             return value * 30 * 24 * 60 * 60 * 1000;
           default:
-            //15 mins that is
+            //15 mins 
             return 900000;
         }
       };
