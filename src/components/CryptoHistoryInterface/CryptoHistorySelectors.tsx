@@ -3,8 +3,8 @@ import ccxt, { OHLCV } from "ccxt";
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DatePickerWithRange } from "@/components/ui/datepicker";
 import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
 import { motion } from "framer-motion";
 import {
   Select,
@@ -15,8 +15,6 @@ import {
 } from "../ui/select";
 import { fadeIn } from "@/lib/animations";
 import { disabledStyle } from "@/lib/styles";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { CalendarIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { cn } from "@/lib/utils";
 import { Loading } from "../Loading";
@@ -115,11 +113,42 @@ export default function CurrencyHistorySelectors() {
       });
       await exchange.loadMarkets();
 
-      const fromMs = Date.parse(fromDate!.toString());
-      const untilMs = Date.parse(toDate!.toString());
+      const fromDateFixed = new Date(fromDate!);
+      fromDateFixed.setUTCHours(0, 0, 0, 0);
+
+      const toDateFixed = new Date(toDate!);
+      toDateFixed.setUTCHours(0, 0, 0, 0);
+      toDateFixed.setUTCDate(toDateFixed.getDate() + 1); // grab the end of the next day, not the start
+
+      const fromMs = fromDateFixed.getTime();
+      const untilMs = toDateFixed.getTime();
+
       const listOfConcurrentRequests = pLimit(5);
       const totalSymbols = selectedSymbols.length;
       let completedSymbols = 0;
+
+      const timeframeToMilliseconds = (timeframe: string): number => {
+        const unit = timeframe.slice(-1);
+        const value = parseInt(timeframe.slice(0, -1));
+
+        switch (unit) {
+          case "m":
+            return value * 60 * 1000;
+          case "h":
+            return value * 60 * 60 * 1000;
+          case "d":
+            return value * 24 * 60 * 60 * 1000;
+          case "w":
+            return value * 7 * 24 * 60 * 60 * 1000;
+          case "M":
+            return value * 30 * 24 * 60 * 60 * 1000;
+          default:
+            //15 mins that is
+            return 900000;
+        }
+      };
+
+      const timeframeMs = timeframeToMilliseconds(timeframe);
 
       const csvBuffers = await Promise.all(
         selectedSymbols.map((symbol) =>
@@ -139,20 +168,25 @@ export default function CurrencyHistorySelectors() {
                   break;
                 }
 
-                allOHLCV.push(...batch);
+                const filteredBatch = batch.filter((row) => row[0]! < untilMs);
+                allOHLCV.push(...filteredBatch);
 
-                const lastTimestamp = batch[batch.length - 1][0];
+                const lastCandle = batch[batch.length - 1];
+                const lastTimestamp = lastCandle[0];
+
+                const lastTimestampWithAddedTimeframe =
+                  lastTimestamp! + timeframeMs;
+
+                if (lastTimestampWithAddedTimeframe >= untilMs) {
+                  break;
+                }
 
                 if (lastTimestamp && startSince >= lastTimestamp) {
                   console.log("Exchange candles changed, our info is now old");
                   break;
                 }
 
-                if (batch.length !== 1000) {
-                  break;
-                }
-
-                startSince = lastTimestamp! + 1;
+                startSince = lastTimestampWithAddedTimeframe;
 
                 await exchange.sleep(exchange.rateLimit);
               }
@@ -302,7 +336,7 @@ export default function CurrencyHistorySelectors() {
   }, [loadSymbols]);
 
   return (
-    <Card className="flex flex-col align-items-center justify-center w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl min-h-[300px] overflow:hidden">
+    <Card className="flex flex-col align-items-center justify-center w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl min-h-[570px] overflow:hidden">
       {loading ? (
         <>
           <Loading
@@ -354,7 +388,13 @@ export default function CurrencyHistorySelectors() {
           </motion.div>
 
           <motion.div {...fadeIn}>
-            <div className={selectedSymbols.length === 0 ? disabledStyle : ""}>
+            <div
+              className={cn(
+                "flex flex-col",
+                selectedSymbols.length === 0 && disabledStyle
+              )}
+            >
+              <span className="text-sm mb-1">Select timeframe</span>
               <Select
                 onValueChange={setTimeframe}
                 value={timeframe}
@@ -377,78 +417,25 @@ export default function CurrencyHistorySelectors() {
           </motion.div>
 
           <motion.div {...fadeIn}>
-            <div
-              className={cn("flex flex-col gap-4", !timeframe && disabledStyle)}
-            >
-              <div className="flex flex-col">
-                <span className="text-sm mb-2">From:</span>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[280px] justify-start text-left font-normal",
-                        !fromDate && "text-muted-foreground"
-                      )}
-                      disabled={!timeframe}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {fromDate ? (
-                        format(fromDate, "PPP")
-                      ) : (
-                        <span>Choose date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={fromDate}
-                      onSelect={setFromDate}
-                      disabled={(day) => day > new Date() || !timeframe}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="flex flex-col">
-                <span className="text-sm mb-1">Until:</span>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[280px] justify-start text-left font-normal",
-                        !toDate && "text-muted-foreground"
-                      )}
-                      disabled={!timeframe || !fromDate}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {toDate ? (
-                        format(toDate, "PPP")
-                      ) : (
-                        <span>Choose date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={toDate}
-                      onSelect={setToDate}
-                      disabled={(day) =>
-                        day > new Date() || day < fromDate! || !timeframe
-                      }
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+            <div className={cn("flex flex-col", !timeframe && disabledStyle)}>
+              <span className="text-sm mb-1">Select Dates</span>
+              <DatePickerWithRange
+                selected={{
+                  from: fromDate,
+                  to: toDate,
+                }}
+                onSelect={(from, to) => {
+                  setFromDate(from);
+                  setToDate(to);
+                }}
+                disabled={(date) => date > new Date()}
+              />
             </div>
           </motion.div>
 
           <motion.div {...fadeIn}>
             <div
-              className={cn("flex flex-col gap-4", !timeframe && disabledStyle)}
+              className={cn("flex flex-col gap-4", !fromDate && disabledStyle)}
             >
               <div className="flex flex-col">
                 <span className="text-sm mb-1">CSV Format:</span>
@@ -486,7 +473,7 @@ export default function CurrencyHistorySelectors() {
                 !toDate
               }
             >
-              Make a request
+              Download
             </Button>
           </motion.div>
         </CardContent>
