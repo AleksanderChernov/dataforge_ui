@@ -43,12 +43,12 @@ export default function CurrencyHistorySelectors() {
   const [loading, setIsLoading] = useState<boolean>(false);
   const [error, setIsError] = useState<string>("");
   const [progress, setProgress] = useState(0);
+  const [csvFormat, setCsvFormat] = useState<CsvFormatsValues>("default");
 
   const escapeFilename = (filename: string) =>
     filename.replace(/[/\\?%*:|"<>]/g, "-");
 
   const cctxTimeframes: { value: string; alias: string }[] = [
-    { value: "1s", alias: "A Second" },
     { value: "1m", alias: "1 Minute" },
     { value: "3m", alias: "3 Minutes" },
     { value: "5m", alias: "5 Minutes" },
@@ -91,6 +91,18 @@ export default function CurrencyHistorySelectors() {
       label: "Traded",
       addedCheck: (symbol) => symbol.info.status === "TRADING",
     },
+  ];
+
+  type CsvFormatsValues = "default" | "tslab";
+
+  type CsvFormats = {
+    value: CsvFormatsValues;
+    alias: "Default" | "TSLab";
+  };
+
+  const csvFormats: CsvFormats[] = [
+    { value: "default", alias: "Default" },
+    { value: "tslab", alias: "TSLab" },
   ];
 
   const handleSubmit = async () => {
@@ -145,10 +157,45 @@ export default function CurrencyHistorySelectors() {
                 await exchange.sleep(exchange.rateLimit);
               }
               console.log(`We got ${allOHLCV.length} candles for ${symbol}`);
-              const csv = [
-                "timestamp,open,high,low,close,volume",
-                ...allOHLCV.map((row) => row.join(",")),
-              ].join("\n");
+
+              let csvHeader = "";
+              let csvRows: string[] = [];
+
+              switch (csvFormat) {
+                case "default":
+                  csvHeader = "timestamp,open,high,low,close,volume";
+                  csvRows = allOHLCV.map((row) => row.join(","));
+                  break;
+                case "tslab":
+                  csvHeader = "";
+                  if (!allOHLCV[0]) {
+                    setIsError(`Exchange returns no datetime`);
+                    return;
+                  }
+                  csvRows = allOHLCV.map((row) => {
+                    const date = format(new Date(row[0]!), "MM/dd/yyyy");
+                    const time = format(new Date(row[0]!), "HH:mm");
+                    const open = String(row[1]);
+                    const high = String(row[2]);
+                    const low = String(row[3]);
+                    const close = String(row[4]);
+                    const volume = String(row[5]);
+                    return `${date};${time};${open};${high};${low};${close};${volume};`;
+                  });
+                  break;
+              }
+
+              let csv: string;
+              switch (csvFormat) {
+                case "tslab":
+                  csv = csvRows.join("\n");
+                  break;
+                case "default":
+                default:
+                  csv = [csvHeader, ...csvRows].join("\n");
+                  break;
+              }
+
               completedSymbols++;
               setProgress((completedSymbols / totalSymbols) * 100);
               return {
@@ -395,6 +442,34 @@ export default function CurrencyHistorySelectors() {
                     />
                   </PopoverContent>
                 </Popover>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div {...fadeIn}>
+            <div
+              className={cn("flex flex-col gap-4", !timeframe && disabledStyle)}
+            >
+              <div className="flex flex-col">
+                <span className="text-sm mb-1">CSV Format:</span>
+                <Select
+                  onValueChange={(value) =>
+                    setCsvFormat(value as CsvFormatsValues)
+                  }
+                  value={csvFormat}
+                  disabled={!timeframe}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose CSV Format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {csvFormats.map(({ value, alias }) => (
+                      <SelectItem key={value} value={value}>
+                        {alias}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </motion.div>
