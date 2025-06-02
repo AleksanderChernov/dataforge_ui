@@ -38,7 +38,8 @@ export default function CurrencyHistorySelectors() {
     "Traded",
     "USDT",
   ]);
-  const [loading, setIsLoading] = useState<boolean>(false);
+  const [loadingSymbols, setIsLoadingSymbols] = useState<boolean>(false);
+  const [loadingCandles, setIsLoadingCandles] = useState<boolean>(false);
   const [error, setIsError] = useState<string>("");
   const [progress, setProgress] = useState(0);
   const [csvFormat, setCsvFormat] = useState<CsvFormatsValues>("default");
@@ -105,7 +106,7 @@ export default function CurrencyHistorySelectors() {
 
   const handleSubmit = async () => {
     setIsError("");
-    setIsLoading(true);
+    setIsLoadingCandles(true);
     setProgress(0);
     try {
       const exchange = new ccxt.binance({
@@ -125,7 +126,6 @@ export default function CurrencyHistorySelectors() {
 
       const listOfConcurrentRequests = pLimit(5);
       const totalSymbols = selectedSymbols.length;
-      let completedSymbols = 0;
 
       const timeframeToMilliseconds = (timeframe: string): number => {
         const unit = timeframe.slice(-1);
@@ -143,12 +143,19 @@ export default function CurrencyHistorySelectors() {
           case "M":
             return value * 30 * 24 * 60 * 60 * 1000;
           default:
-            //15 mins 
+            //15 mins
             return 900000;
         }
       };
 
       const timeframeMs = timeframeToMilliseconds(timeframe);
+
+      //progress bar logic
+      const expectedCandlesPerSymbol = Math.ceil(
+        (untilMs - fromMs) / timeframeMs
+      );
+      const totalExpectedCandles = totalSymbols * expectedCandlesPerSymbol;
+      let totalCandlesFetched = 0;
 
       const csvBuffers = await Promise.all(
         selectedSymbols.map((symbol) =>
@@ -185,6 +192,11 @@ export default function CurrencyHistorySelectors() {
                   console.log("Exchange candles changed, our info is now old");
                   break;
                 }
+
+                totalCandlesFetched += filteredBatch.length;
+                const overallProgress =
+                  (totalCandlesFetched / totalExpectedCandles) * 100;
+                setProgress(overallProgress);
 
                 startSince = lastTimestampWithAddedTimeframe;
 
@@ -230,8 +242,6 @@ export default function CurrencyHistorySelectors() {
                   break;
               }
 
-              completedSymbols++;
-              setProgress((completedSymbols / totalSymbols) * 100);
               return {
                 filename: `${escapeFilename(symbol)}_${format(
                   fromDate!,
@@ -272,7 +282,7 @@ export default function CurrencyHistorySelectors() {
         "Received an error while making a symbols history request. Try again."
       );
     } finally {
-      setIsLoading(false);
+      setIsLoadingCandles(false);
     }
   };
 
@@ -285,12 +295,11 @@ export default function CurrencyHistorySelectors() {
   };
 
   const loadSymbols = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoadingSymbols(true);
     setIsError("");
     try {
       const exchange = new ccxt.binance({
         enableRateLimit: true,
-        options: { defaultType: "perpetual" },
       });
       await exchange.loadMarkets();
       const filteredSymbols = Object.values(exchange.markets)
@@ -307,7 +316,7 @@ export default function CurrencyHistorySelectors() {
         "Received an error while making a symbols list request. Try again."
       );
     } finally {
-      setIsLoading(false);
+      setIsLoadingSymbols(false);
     }
   }, [activeFilters]);
 
@@ -337,19 +346,19 @@ export default function CurrencyHistorySelectors() {
 
   return (
     <Card className="flex flex-col align-items-center justify-center w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl min-h-[570px] overflow:hidden">
-      {loading ? (
+      {loadingSymbols || loadingCandles ? (
         <>
           <Loading
             message={
-              selectedSymbols.length >= 3 &&
-              (timeframe !== "1d" || "3d" || "1w" || "1M")
-                ? "Small timeframe and many symbols, it might take a while."
-                : "Loading exchange info..."
+              loadingCandles
+                ? selectedSymbols.length >= 3 &&
+                  !["1d", "3d", "1w", "1M"].includes(timeframe)
+                  ? "Small timeframe and many symbols, it might take a while."
+                  : "Downloading candles"
+                : "Loading symbols"
             }
           />
-          {progress > 0 ? (
-            <Progress value={progress} className="w-80%" />
-          ) : null}
+          {loadingCandles && <Progress value={progress} className="w-80%" />}
         </>
       ) : (
         <CardContent className="space-y-4">
