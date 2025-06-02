@@ -16,8 +16,6 @@ A simple landing page with some selectors that let you choose params to get resu
 
 Dataforge is a small utility for loading exchange data, making it easier to experiment with market history.
 
-The default Next.js favicon has been replaced with a minimal 'DF' icon defined in `src/app/icon.svg`.
-
 ## TODO
 
 - Stricter typing
