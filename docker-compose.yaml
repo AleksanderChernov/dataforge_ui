@@ -12,3 +12,9 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
+    networks:
+      - traefik_proxy
+
+networks:
+  traefik_proxy:
+    external: true
