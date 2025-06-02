@@ -21,7 +21,3 @@ A simple landing page with some selectors that let you choose params to get resu
 - Better (flashier?) UI
 - Remember user's previous request params and ask if they want to get info for a previous week
 - Time intervals requre stricter logic (i.e. user shouldn't be able to select 1 month timeframe and select only a single day in date selectors)
-
-## BUG
-
-- Sometimes extracting the files creates Error 0x80070057 yet everything with the files seems normal. Maybe it's the double quotes?
