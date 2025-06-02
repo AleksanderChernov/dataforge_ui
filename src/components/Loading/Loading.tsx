@@ -16,7 +16,7 @@ export default function Loading({
           <Loader className="animate-spin text-muted-foreground" size={34} />
         )}
       </div>
-      <h1>{message}</h1>
+      <h1 className={"text-xl"}>{message}</h1>
     </div>
   );
 }

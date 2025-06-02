@@ -135,6 +135,8 @@ export default function CurrencyHistorySelectors() {
         const value = parseInt(timeframe.slice(0, -1));
 
         switch (unit) {
+          case "s":
+            return value * 1000;
           case "m":
             return value * 60 * 1000;
           case "h":
@@ -364,7 +366,7 @@ export default function CurrencyHistorySelectors() {
           />
           {loadingCandles && (
             <div className="flex flex-col items-center gap-y-4">
-              <h1 className="text-3xl">{progress} %</h1>
+              <h1 className="text-xl">{progress}%</h1>
               <Progress value={progress} className="w-80%" />
             </div>
           )}
