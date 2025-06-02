@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DatePickerWithRange } from "@/components/ui/datepicker";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
@@ -482,12 +482,8 @@ export default function CurrencyHistorySelectors() {
           {csvFormat === "tslab" && timeframe === "1s" && (
             <Alert variant="destructive">
               <AlertCircleIcon />
-              <AlertTitle>Unprocessable value</AlertTitle>
               <AlertDescription>
-                <p>
-                  TSlab csv format cannot be used with timeframes that are less
-                  than a minute
-                </p>
+                <p>TSLab format cannot be used with 1s timeframe</p>
               </AlertDescription>
             </Alert>
           )}
