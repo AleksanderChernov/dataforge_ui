@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DatePickerWithRange } from "@/components/ui/datepicker";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
@@ -25,6 +26,7 @@ import SymbolSelector from "./SymbolPanel";
 import { Progress } from "@/components/ui/progress";
 import { FilterConditions } from "@/lib/types";
 import SymbolInfo from "./SymbolInfo";
+import { AlertCircleIcon } from "lucide-react";
 
 export default function CurrencyHistorySelectors() {
   const exchangeId = "binance";
@@ -48,6 +50,7 @@ export default function CurrencyHistorySelectors() {
     filename.replace(/[/\\?%*:|"<>]/g, "-");
 
   const cctxTimeframes: { value: string; alias: string }[] = [
+    { value: "1s", alias: "1 Second" },
     { value: "1m", alias: "1 Minute" },
     { value: "3m", alias: "3 Minutes" },
     { value: "5m", alias: "5 Minutes" },
@@ -71,7 +74,7 @@ export default function CurrencyHistorySelectors() {
       addedCheck: (symbol) => symbol.swap,
     },
     {
-      label: "Future",
+      label: "Futures",
       addedCheck: (symbol) => symbol.future,
     },
     {
@@ -196,7 +199,7 @@ export default function CurrencyHistorySelectors() {
                 totalCandlesFetched += filteredBatch.length;
                 const overallProgress =
                   (totalCandlesFetched / totalExpectedCandles) * 100;
-                setProgress(overallProgress);
+                setProgress(Math.ceil(overallProgress));
 
                 startSince = lastTimestampWithAddedTimeframe;
 
@@ -349,16 +352,22 @@ export default function CurrencyHistorySelectors() {
       {loadingSymbols || loadingCandles ? (
         <>
           <Loading
+            loader={loadingCandles ? false : true}
             message={
               loadingCandles
                 ? selectedSymbols.length >= 3 &&
                   !["1d", "3d", "1w", "1M"].includes(timeframe)
                   ? "Small timeframe and many symbols, it might take a while."
-                  : "Downloading candles"
+                  : "Downloading candles..."
                 : "Loading symbols"
             }
           />
-          {loadingCandles && <Progress value={progress} className="w-80%" />}
+          {loadingCandles && (
+            <div className="flex flex-col items-center gap-y-4">
+              <h1 className="text-3xl">{progress} %</h1>
+              <Progress value={progress} className="w-80%" />
+            </div>
+          )}
         </>
       ) : (
         <CardContent className="space-y-4">
@@ -470,6 +479,19 @@ export default function CurrencyHistorySelectors() {
             </div>
           </motion.div>
 
+          {csvFormat === "tslab" && timeframe === "1s" && (
+            <Alert variant="destructive">
+              <AlertCircleIcon />
+              <AlertTitle>Unprocessable value</AlertTitle>
+              <AlertDescription>
+                <p>
+                  TSlab csv format cannot be used with timeframes that are less
+                  than a minute
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <motion.div {...fadeIn}>
             <Button
               className="w-full cursor-pointer"
@@ -479,7 +501,8 @@ export default function CurrencyHistorySelectors() {
                 !selectedSymbols ||
                 !timeframe ||
                 !fromDate ||
-                !toDate
+                !toDate ||
+                (csvFormat === "tslab" && timeframe === "1s")
               }
             >
               Download

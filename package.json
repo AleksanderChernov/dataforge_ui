@@ -1,5 +1,5 @@
 {
-  "name": "datafothe_ui",
+  "name": "dataforge_ui",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,11 +10,12 @@
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.10",
+    "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-checkbox": "^1.3.2",
     "@radix-ui/react-popover": "^1.1.13",
     "@radix-ui/react-progress": "^1.1.7",
     "@radix-ui/react-select": "^2.2.4",
-    "@radix-ui/react-slot": "^1.2.2",
+    "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.11",
     "ccxt": "^4.4.82",
     "class-variance-authority": "^0.7.1",
