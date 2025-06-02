@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "DataForge - Crypto markets data hub",
   description: "Crypto markets data hub",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
