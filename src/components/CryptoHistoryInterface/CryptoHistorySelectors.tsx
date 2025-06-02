@@ -3,8 +3,9 @@ import ccxt, { OHLCV } from "ccxt";
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DatePickerWithRange } from "@/components/ui/datepicker";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
 import { motion } from "framer-motion";
 import {
   Select,
@@ -15,8 +16,6 @@ import {
 } from "../ui/select";
 import { fadeIn } from "@/lib/animations";
 import { disabledStyle } from "@/lib/styles";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { CalendarIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { cn } from "@/lib/utils";
 import { Loading } from "../Loading";
@@ -26,6 +25,8 @@ import FilterPanel from "./FilterPanel";
 import SymbolSelector from "./SymbolPanel";
 import { Progress } from "@/components/ui/progress";
 import { FilterConditions } from "@/lib/types";
+import SymbolInfo from "./SymbolInfo";
+import { AlertCircleIcon } from "lucide-react";
 
 export default function CurrencyHistorySelectors() {
   const exchangeId = "binance";
@@ -34,14 +35,22 @@ export default function CurrencyHistorySelectors() {
   const [toDate, setToDate] = useState<Date | undefined>();
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [search, setSearch] = useState<string>("");
-  const [loading, setIsLoading] = useState<boolean>(false);
+  const [activeFilters, setActiveFilters] = useState<string[]>([
+    "Active",
+    "Traded",
+    "USDT",
+  ]);
+  const [loadingSymbols, setIsLoadingSymbols] = useState<boolean>(false);
+  const [loadingCandles, setIsLoadingCandles] = useState<boolean>(false);
   const [error, setIsError] = useState<string>("");
-  const [progress, setProgress] = useState(0); // Progress state
+  const [progress, setProgress] = useState(0);
+  const [csvFormat, setCsvFormat] = useState<CsvFormatsValues>("default");
+
+  const escapeFilename = (filename: string) =>
+    filename.replace(/[/\\?%*:|"<>]/g, "-");
 
   const cctxTimeframes: { value: string; alias: string }[] = [
-    { value: "1s", alias: "A Second" },
+    { value: "1s", alias: "1 Second" },
     { value: "1m", alias: "1 Minute" },
     { value: "3m", alias: "3 Minutes" },
     { value: "5m", alias: "5 Minutes" },
@@ -65,7 +74,7 @@ export default function CurrencyHistorySelectors() {
       addedCheck: (symbol) => symbol.swap,
     },
     {
-      label: "Future",
+      label: "Futures",
       addedCheck: (symbol) => symbol.future,
     },
     {
@@ -86,9 +95,21 @@ export default function CurrencyHistorySelectors() {
     },
   ];
 
+  type CsvFormatsValues = "default" | "tslab";
+
+  type CsvFormats = {
+    value: CsvFormatsValues;
+    alias: "Default" | "TSLab";
+  };
+
+  const csvFormats: CsvFormats[] = [
+    { value: "default", alias: "Default" },
+    { value: "tslab", alias: "TSLab" },
+  ];
+
   const handleSubmit = async () => {
     setIsError("");
-    setIsLoading(true);
+    setIsLoadingCandles(true);
     setProgress(0);
     try {
       const exchange = new ccxt.binance({
@@ -96,11 +117,50 @@ export default function CurrencyHistorySelectors() {
       });
       await exchange.loadMarkets();
 
-      const fromMs = Date.parse(fromDate!.toString());
-      const untilMs = Date.parse(toDate!.toString());
+      const fromDateFixed = new Date(fromDate!);
+      fromDateFixed.setUTCHours(0, 0, 0, 0);
+
+      const toDateFixed = new Date(toDate!);
+      toDateFixed.setUTCHours(0, 0, 0, 0);
+      toDateFixed.setUTCDate(toDateFixed.getDate() + 1); // grab the end of the next day, not stop at the start
+
+      const fromMs = fromDateFixed.getTime();
+      const untilMs = toDateFixed.getTime();
+
       const listOfConcurrentRequests = pLimit(5);
       const totalSymbols = selectedSymbols.length;
-      let completedSymbols = 0;
+
+      const timeframeToMilliseconds = (timeframe: string): number => {
+        const unit = timeframe.slice(-1);
+        const value = parseInt(timeframe.slice(0, -1));
+
+        switch (unit) {
+          case "s":
+            return value * 1000;
+          case "m":
+            return value * 60 * 1000;
+          case "h":
+            return value * 60 * 60 * 1000;
+          case "d":
+            return value * 24 * 60 * 60 * 1000;
+          case "w":
+            return value * 7 * 24 * 60 * 60 * 1000;
+          case "M":
+            return value * 30 * 24 * 60 * 60 * 1000;
+          default:
+            //15 mins
+            return 900000;
+        }
+      };
+
+      const timeframeMs = timeframeToMilliseconds(timeframe);
+
+      //progress bar logic
+      const expectedCandlesPerSymbol = Math.ceil(
+        (untilMs - fromMs) / timeframeMs
+      );
+      const totalExpectedCandles = totalSymbols * expectedCandlesPerSymbol;
+      let totalCandlesFetched = 0;
 
       const csvBuffers = await Promise.all(
         selectedSymbols.map((symbol) =>
@@ -120,32 +180,78 @@ export default function CurrencyHistorySelectors() {
                   break;
                 }
 
-                allOHLCV.push(...batch);
+                const filteredBatch = batch.filter((row) => row[0]! < untilMs);
+                allOHLCV.push(...filteredBatch);
 
-                const lastTimestamp = batch[batch.length - 1][0];
+                const lastCandle = batch[batch.length - 1];
+                const lastTimestamp = lastCandle[0];
+
+                const lastTimestampWithAddedTimeframe =
+                  lastTimestamp! + timeframeMs;
+
+                if (lastTimestampWithAddedTimeframe >= untilMs) {
+                  break;
+                }
 
                 if (lastTimestamp && startSince >= lastTimestamp) {
                   console.log("Exchange candles changed, our info is now old");
                   break;
                 }
 
-                if (batch.length !== 1000) {
-                  break;
-                }
+                totalCandlesFetched += filteredBatch.length;
+                const overallProgress =
+                  (totalCandlesFetched / totalExpectedCandles) * 100;
+                setProgress(Math.ceil(overallProgress));
 
-                startSince = lastTimestamp! + 1;
+                startSince = lastTimestampWithAddedTimeframe;
 
                 await exchange.sleep(exchange.rateLimit);
               }
               console.log(`We got ${allOHLCV.length} candles for ${symbol}`);
-              const csv = [
-                "timestamp,open,high,low,close,volume",
-                ...allOHLCV.map((row) => row.join(",")),
-              ].join("\n");
-              completedSymbols++;
-              setProgress((completedSymbols / totalSymbols) * 100);
+
+              let csvHeader = "";
+              let csvRows: string[] = [];
+
+              switch (csvFormat) {
+                case "default":
+                  csvHeader = "timestamp,open,high,low,close,volume";
+                  csvRows = allOHLCV.map((row) => row.join(","));
+                  break;
+                case "tslab":
+                  csvHeader = "";
+                  if (!allOHLCV[0]) {
+                    setIsError(`Exchange returns no datetime`);
+                    return;
+                  }
+                  csvRows = allOHLCV.map((row) => {
+                    const date = format(new Date(row[0]!), "MM/dd/yyyy");
+                    const time = format(new Date(row[0]!), "HH:mm");
+                    const open = String(row[1]);
+                    const high = String(row[2]);
+                    const low = String(row[3]);
+                    const close = String(row[4]);
+                    const volume = String(row[5]);
+                    return `${date};${time};${open};${high};${low};${close};${volume};`;
+                  });
+                  break;
+              }
+
+              let csv: string;
+              switch (csvFormat) {
+                case "tslab":
+                  csv = csvRows.join("\n");
+                  break;
+                case "default":
+                default:
+                  csv = [csvHeader, ...csvRows].join("\n");
+                  break;
+              }
+
               return {
-                filename: symbol + ".csv",
+                filename: `${escapeFilename(symbol)}_${format(
+                  fromDate!,
+                  "yyyy_MM-dd"
+                )}_${format(toDate!, "yyyy_MM-dd")}.csv`,
                 content: csv,
               };
             } catch (error) {
@@ -168,7 +274,9 @@ export default function CurrencyHistorySelectors() {
         const url = URL.createObjectURL(content);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `ohlcv_data:${selectedSymbols.join(".")}.zip`;
+        link.download = `ohlcv_data:${escapeFilename(
+          selectedSymbols.join(".")
+        )}.zip`;
         link.click();
         URL.revokeObjectURL(url);
         setProgress(0);
@@ -179,7 +287,7 @@ export default function CurrencyHistorySelectors() {
         "Received an error while making a symbols history request. Try again."
       );
     } finally {
-      setIsLoading(false);
+      setIsLoadingCandles(false);
     }
   };
 
@@ -192,12 +300,11 @@ export default function CurrencyHistorySelectors() {
   };
 
   const loadSymbols = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoadingSymbols(true);
     setIsError("");
     try {
       const exchange = new ccxt.binance({
         enableRateLimit: true,
-        options: { defaultType: "perpetual" },
       });
       await exchange.loadMarkets();
       const filteredSymbols = Object.values(exchange.markets)
@@ -207,8 +314,6 @@ export default function CurrencyHistorySelectors() {
             .every((filter) => filter.addedCheck(symbol))
         )
         .map(({ symbol }) => symbol);
-      console.log(Object.values(exchange.markets));
-      console.log(filteredSymbols);
       setAllSymbols(filteredSymbols);
     } catch (err) {
       console.error(err);
@@ -216,7 +321,7 @@ export default function CurrencyHistorySelectors() {
         "Received an error while making a symbols list request. Try again."
       );
     } finally {
-      setIsLoading(false);
+      setIsLoadingSymbols(false);
     }
   }, [activeFilters]);
 
@@ -245,20 +350,26 @@ export default function CurrencyHistorySelectors() {
   }, [loadSymbols]);
 
   return (
-    <Card className="flex flex-col align-items-center justify-center w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl min-h-[300px] overflow:hidden">
-      {loading ? (
+    <Card className="flex flex-col align-items-center justify-center w-full max-w-xl mx-auto mt-10 p-4 space-y-6 shadow-xl min-h-[570px] overflow:hidden">
+      {loadingSymbols || loadingCandles ? (
         <>
           <Loading
+            loader={loadingCandles ? false : true}
             message={
-              selectedSymbols.length >= 3 &&
-              (timeframe !== "1d" || "3d" || "1w" || "1M")
-                ? "Small timeframe and many symbols, it might take a while."
-                : "Loading exchange info..."
+              loadingCandles
+                ? selectedSymbols.length >= 3 &&
+                  !["1d", "3d", "1w", "1M"].includes(timeframe)
+                  ? "Small timeframe and many symbols, it might take a while."
+                  : "Downloading candles..."
+                : "Loading symbols"
             }
           />
-          {progress > 0 ? (
-            <Progress value={progress} className="w-80%" />
-          ) : null}
+          {loadingCandles && (
+            <div className="flex flex-col items-center gap-y-4">
+              <h1 className="text-xl">{progress}%</h1>
+              <Progress value={progress} className="w-80%" />
+            </div>
+          )}
         </>
       ) : (
         <CardContent className="space-y-4">
@@ -271,14 +382,12 @@ export default function CurrencyHistorySelectors() {
                   toggleFilter={toggleFilter}
                 />
                 <div className="p-4 text-center">
-                  {allSymbols.length} symbols loaded. Only 50 will be shown, use
-                  the search to find those you seek.
+                  {allSymbols.length} symbols loaded. Use the search to find
+                  those you seek.
                 </div>
                 <SymbolSelector
                   allSymbols={allSymbols}
                   selectedSymbols={selectedSymbols}
-                  search={search}
-                  setSearch={setSearch}
                   checkForDoubleAndSave={checkForDoubleAndSave}
                 />
                 <div className="flex flex-wrap gap-2">
@@ -293,12 +402,19 @@ export default function CurrencyHistorySelectors() {
                     </Badge>
                   ))}
                 </div>
+                <SymbolInfo />
               </div>
             </div>
           </motion.div>
 
           <motion.div {...fadeIn}>
-            <div className={selectedSymbols.length === 0 ? disabledStyle : ""}>
+            <div
+              className={cn(
+                "flex flex-col",
+                selectedSymbols.length === 0 && disabledStyle
+              )}
+            >
+              <span className="text-sm mb-1">Select timeframe</span>
               <Select
                 onValueChange={setTimeframe}
                 value={timeframe}
@@ -321,74 +437,58 @@ export default function CurrencyHistorySelectors() {
           </motion.div>
 
           <motion.div {...fadeIn}>
+            <div className={cn("flex flex-col", !timeframe && disabledStyle)}>
+              <span className="text-sm mb-1">Select Dates</span>
+              <DatePickerWithRange
+                selected={{
+                  from: fromDate,
+                  to: toDate,
+                }}
+                onSelect={(from, to) => {
+                  setFromDate(from);
+                  setToDate(to);
+                }}
+                disabled={(date) => date > new Date()}
+              />
+            </div>
+          </motion.div>
+
+          <motion.div {...fadeIn}>
             <div
-              className={cn("flex flex-col gap-4", !timeframe && disabledStyle)}
+              className={cn("flex flex-col gap-4", !fromDate && disabledStyle)}
             >
               <div className="flex flex-col">
-                <span className="text-sm mb-2">From:</span>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[280px] justify-start text-left font-normal",
-                        !fromDate && "text-muted-foreground"
-                      )}
-                      disabled={!timeframe}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {fromDate ? (
-                        format(fromDate, "PPP")
-                      ) : (
-                        <span>Choose date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={fromDate}
-                      onSelect={setFromDate}
-                      disabled={(day) => day > new Date() || !timeframe}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="flex flex-col">
-                <span className="text-sm mb-1">Until:</span>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[280px] justify-start text-left font-normal",
-                        !toDate && "text-muted-foreground"
-                      )}
-                      disabled={!timeframe || !fromDate}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {toDate ? (
-                        format(toDate, "PPP")
-                      ) : (
-                        <span>Choose date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={toDate}
-                      onSelect={setToDate}
-                      disabled={(day) =>
-                        day > new Date() || day < fromDate! || !timeframe
-                      }
-                    />
-                  </PopoverContent>
-                </Popover>
+                <span className="text-sm mb-1">CSV Format:</span>
+                <Select
+                  onValueChange={(value) =>
+                    setCsvFormat(value as CsvFormatsValues)
+                  }
+                  value={csvFormat}
+                  disabled={!timeframe}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose CSV Format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {csvFormats.map(({ value, alias }) => (
+                      <SelectItem key={value} value={value}>
+                        {alias}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </motion.div>
+
+          {csvFormat === "tslab" && timeframe === "1s" && (
+            <Alert variant="destructive">
+              <AlertCircleIcon />
+              <AlertDescription>
+                <p>TSLab format cannot be used with 1s timeframe</p>
+              </AlertDescription>
+            </Alert>
+          )}
 
           <motion.div {...fadeIn}>
             <Button
@@ -399,10 +499,11 @@ export default function CurrencyHistorySelectors() {
                 !selectedSymbols ||
                 !timeframe ||
                 !fromDate ||
-                !toDate
+                !toDate ||
+                (csvFormat === "tslab" && timeframe === "1s")
               }
             >
-              Make a request
+              Download
             </Button>
           </motion.div>
         </CardContent>
