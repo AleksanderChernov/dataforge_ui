@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { DatePickerWithRange } from "@/components/ui/datepicker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
-import { motion } from "framer-motion";
+import { motion } from "@/lib/framer-motion";
 import {
   Select,
   SelectContent,
@@ -334,9 +334,9 @@ export default function CurrencyHistorySelectors() {
         return isCheckboxActive
           ? prev.filter((filter) => filter !== label)
           : [
-              ...prev.filter((filter) => !exclusiveCheckboxes.includes(filter)),
-              label,
-            ];
+            ...prev.filter((filter) => !exclusiveCheckboxes.includes(filter)),
+            label,
+          ];
       }
 
       return isCheckboxActive

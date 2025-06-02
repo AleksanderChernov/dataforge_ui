@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion } from "@/lib/framer-motion";
 import { Checkbox } from "../ui/checkbox";
 import { fadeIn } from "@/lib/animations";
 import { FilterConditions } from "@/lib/types";
@@ -10,7 +10,7 @@ type FilterPanelProps = {
 };
 
 export default function FilterPanel(props: FilterPanelProps) {
-  const {filterConditions, activeFilters, toggleFilter} = props;
+  const { filterConditions, activeFilters, toggleFilter } = props;
 
   return (
     <motion.div {...fadeIn}>
