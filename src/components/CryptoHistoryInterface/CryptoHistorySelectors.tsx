@@ -27,6 +27,7 @@ import { Progress } from "@/components/ui/progress";
 import { FilterConditions } from "@/lib/types";
 import SymbolInfo from "./SymbolInfo";
 import { AlertCircleIcon } from "lucide-react";
+import { sendGAEvent } from "@next/third-parties/google";
 
 export default function CurrencyHistorySelectors() {
   const exchangeId = "binance";
@@ -111,6 +112,7 @@ export default function CurrencyHistorySelectors() {
     setIsError("");
     setIsLoadingCandles(true);
     setProgress(0);
+    sendGAEvent("event", "clickedDownloadOHLCV");
     try {
       const exchange = new ccxt.binance({
         enableRateLimit: true,
@@ -334,9 +336,9 @@ export default function CurrencyHistorySelectors() {
         return isCheckboxActive
           ? prev.filter((filter) => filter !== label)
           : [
-            ...prev.filter((filter) => !exclusiveCheckboxes.includes(filter)),
-            label,
-          ];
+              ...prev.filter((filter) => !exclusiveCheckboxes.includes(filter)),
+              label,
+            ];
       }
 
       return isCheckboxActive
@@ -509,9 +511,12 @@ export default function CurrencyHistorySelectors() {
         </CardContent>
       )}
       {error ?? (
-        <div className="flex justify-center align-items-center text-center flex-col h-[500px]">
-          <h1 className="text-red">{error}</h1>
-        </div>
+        <Alert variant="destructive">
+          <AlertCircleIcon />
+          <AlertDescription>
+            <p>{error}</p>
+          </AlertDescription>
+        </Alert>
       )}
     </Card>
   );
